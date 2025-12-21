@@ -1113,7 +1113,14 @@ export class AnalysisView extends ItemView {
       };
 
       const analysisService = new AnalysisService(this.llmService);
+      // 设置断点服务，支持断点续传
+      analysisService.setCheckpointService(this.checkpointService);
       const outputPath = this.settings.notesPath || '拆书笔记';
+      
+      // 计算章节范围用于断点保存
+      const chapterRange = this.analyzeAllChapters 
+        ? { start: 1, end: book.chapters.length }
+        : { start: this.chapterStart, end: this.chapterEnd };
       
       const createFile = async (path: string, content: string) => {
         const folderPath = path.substring(0, path.lastIndexOf('/'));
@@ -1138,7 +1145,8 @@ export class AnalysisView extends ItemView {
         book, config,
         (progress) => this.updateProgress(progress),
         (stage, status, message, result) => this.addStageResult(stage, status, message, result),
-        onNoteGenerated, createFile, outputPath, this.analysisController
+        onNoteGenerated, createFile, outputPath, this.analysisController,
+        outputPath, chapterRange
       );
 
       this.updateProgress({ stage: '完成', progress: 100, message: '分析完成！' });
