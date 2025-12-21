@@ -1,83 +1,142 @@
-# SoNovel - 小说下载工具
+# SoNovel + NovelCraft - 网文拆书学习工具套件
 
-一个功能强大的小说下载工具，支持多种书源和部署方式。
+一套完整的网络小说学习工具，包含小说下载服务和 Obsidian 智能分析插件。
 
-## 快速开始
+> SoNovel 基于 [freeok/so-novel](https://github.com/freeok/so-novel) 修改
 
-### Windows 用户
+## 📦 项目组成
+
+| 组件 | 说明 |
+|------|------|
+| **SoNovel** | 小说搜索下载服务，支持多书源 |
+| **NovelCraft** | Obsidian 插件，AI 驱动的小说分析工具 |
+
+## ✨ 功能特点
+
+### SoNovel 下载服务
+- 多书源搜索和下载
+- WebUI 和 CLI 两种模式
+- Docker 一键部署
+- 自定义书源规则
+
+### NovelCraft 分析插件
+- 多格式支持：EPUB、TXT、DOCX、PDF
+- AI 智能分析：人物、情节、写作技法
+- 流式对话追问
+- 结构化笔记生成
+- Token 消耗追踪
+
+## 🚀 快速开始
+
+### 1. 启动 SoNovel 服务
+
+**Docker 部署（推荐）**
 ```bash
+docker-compose up -d
+# 访问 http://localhost:7765
+```
+
+**本地运行**
+```bash
+# macOS
+./run-macos.sh
+
+# Windows
 sonovel.exe
 ```
 
-### macOS 用户
+### 2. 安装 NovelCraft 插件
+
 ```bash
-./run-macos.sh
+cd novel-craft
+npm install
+npm run build
 ```
 
-### Linux 用户
-```bash
-./run-linux.sh
+将 `novel-craft` 文件夹复制到 Obsidian 插件目录：
+```
+<vault>/.obsidian/plugins/novel-craft/
 ```
 
-## 使用说明
+### 3. 配置插件
 
-- 为获得最佳使用体验，请将终端窗口最大化
-- `config.ini` 是配置文件，每个配置项有对应的注释，修改保存后需重启应用
-- 如果认为下载速度较慢，适当减小爬取间隔可能有助于提高速度
-- 设置过小的爬取间隔会导致部分书源封禁 IP，从而无法使用
-- 如果书名搜不到，就用作者名称搜，反之亦然
+1. 在 Obsidian 设置中启用 NovelCraft
+2. 配置 LLM 服务（OpenAI/Claude/DeepSeek 等）
+3. 配置 SoNovel 服务地址（默认 `http://localhost:7765`）
 
-## WebUI 模式
+## 📖 使用流程
 
-1. 在 `config.ini` 中开启 Web 服务
-2. 浏览器访问 `localhost:7765`
+```
+搜索小说 → 下载 EPUB → 导入 Obsidian → AI 分析 → 生成笔记 → 追问对话
+```
 
-## Docker 部署（推荐）
+1. 在 NovelCraft 主面板搜索小说
+2. 下载到 Vault
+3. 选择分析模式和章节范围
+4. 查看生成的分析笔记
+5. 通过对话深入探讨
 
-### 使用 Docker Compose（最简单）
+## 📁 目录结构
+
+```
+├── app.jar              # SoNovel 服务
+├── config.ini           # SoNovel 配置
+├── rules/               # 书源规则
+├── downloads/           # 下载目录
+├── novel-craft/         # Obsidian 插件
+│   ├── main.ts          # 插件入口
+│   ├── src/             # 源代码
+│   └── styles.css       # 样式
+├── Dockerfile           # Docker 构建
+└── docker-compose.yml   # Docker Compose
+```
+
+## ⚙️ 配置说明
+
+### SoNovel 配置 (config.ini)
+```ini
+[web]
+enabled = 1
+port = 7765
+
+[download]
+path = downloads
+interval = 500
+```
+
+### NovelCraft LLM 配置
+| 服务商 | API 地址 |
+|--------|----------|
+| OpenAI | `https://api.openai.com/v1` |
+| Claude | `https://api.anthropic.com` |
+| DeepSeek | `https://api.deepseek.com` |
+
+## 🐳 Docker 部署
+
 ```bash
+# 构建并启动
 docker-compose up -d
+
+# 查看日志
+docker-compose logs -f
+
+# 停止服务
+docker-compose down
 ```
 
-### 使用 Docker 命令
-```bash
-docker build -t sonovel-webui .
-docker run -d -p 7765:7765 \
-  -v $(pwd)/config.ini:/app/config.ini \
-  -v $(pwd)/rules:/app/rules \
-  -v $(pwd)/downloads:/app/downloads \
-  --name sonovel sonovel-webui
-```
+详细部署说明：[DEPLOYMENT.md](DEPLOYMENT.md)
 
-详细部署说明请查看 [DEPLOYMENT.md](DEPLOYMENT.md) 文件。
+## 📚 文档
 
-## CLI 模式
+- [NovelCraft 插件详细文档](novel-craft/README.md)
+- [部署指南](DEPLOYMENT.md)
+- [项目说明](PROJECT_README.md)
 
-### Windows
-```bash
-.\sonovel.exe -h
-```
+## 📄 许可证
 
-### Linux
-```bash
-./runtime/bin/java -jar app.jar -h
-```
+MIT License
 
-### macOS
-```bash
-./runtime/Contents/Home/bin/java -jar app.jar -h
-```
+## 🙏 致谢
 
-## 问题反馈
-
-- 使用问题或功能建议：[Issues](https://github.com/freeok/so-novel/issues/new/choose)
-- 其他讨论：[Discussions](https://github.com/so-novel/discussions/new/choose)
-
-提交反馈前请先查看：
-- [常见问题](https://github.com/freeok/so-novel/issues?q=label%3A%22usage%20question%22)
-- [讨论区](https://github.com/freeok/so-novel/discussions?discussions_q=)
-
-## 相关链接
-
-- [下载地址](https://github.com/freeok/so-novel/releases)
-- [书源一览](https://github.com/freeok/so-novel/blob/main/BOOK_SOURCES.md)
+- [freeok/so-novel](https://github.com/freeok/so-novel) - 原版小说下载工具
+- [Obsidian](https://obsidian.md/) - 知识管理工具

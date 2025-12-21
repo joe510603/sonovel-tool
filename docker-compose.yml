@@ -4,8 +4,8 @@ services:
   sonovel:
     build: .
     container_name: sonovel-webui
-    ports:
-      - "7765:7765"
+    expose:
+      - "7765"
     volumes:
       # 挂载配置文件以便在容器外部修改
       - ./config.ini:/app/config.ini
@@ -23,3 +23,15 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+
+  # Nginx 反向代理，处理 CORS
+  nginx:
+    image: nginx:alpine
+    container_name: sonovel-proxy
+    ports:
+      - "7765:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - sonovel
+    restart: unless-stopped

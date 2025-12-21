@@ -1,151 +1,120 @@
 # SoNovel Docker 部署指南
 
-本项目已 Docker 化，可以通过 Docker 容器运行 SoNovel 应用程序，并通过 Web UI 访问。
+本项目已 Docker 化，可以通过 Docker 容器运行 SoNovel 应用程序。
 
-## 文件结构
+## 📁 文件结构
 
-- `Dockerfile` - Docker 构建文件
-- `docker-compose.yml` - Docker Compose 配置文件
-- `config.ini` - 应用程序配置文件（已启用 Web 服务）
-- `app.jar` - 应用程序 JAR 文件
-- `rules/` - 规则文件目录
-- `downloads/` - 下载目录（Docker 容器中会自动创建）
+```
+├── Dockerfile           # Docker 构建文件
+├── docker-compose.yml   # Docker Compose 配置
+├── nginx.conf           # Nginx 反向代理配置
+├── config.ini           # 应用程序配置
+├── app.jar              # 应用程序 JAR 文件
+├── rules/               # 书源规则目录
+└── downloads/           # 下载目录
+```
 
-## 快速开始
+## 🚀 快速开始
 
 ### 使用 Docker Compose（推荐）
 
-1. 确保已安装 Docker 和 Docker Compose
-2. 在项目根目录运行：
-   ```bash
-   docker-compose up -d
-   ```
-3. 访问 Web UI：http://localhost:7765
+```bash
+# 启动服务
+docker-compose up -d
+
+# 访问 WebUI
+open http://localhost:7765
+```
 
 ### 使用 Docker 命令
 
-1. 构建 Docker 镜像：
-   ```bash
-   docker build -t sonovel-webui .
-   ```
+```bash
+# 构建镜像
+docker build -t sonovel-webui .
 
-2. 运行容器：
-   ```bash
-   docker run -d \
-     -p 7765:7765 \
-     -v $(pwd)/config.ini:/app/config.ini \
-     -v $(pwd)/rules:/app/rules \
-     -v $(pwd)/downloads:/app/downloads \
-     --name sonovel \
-     sonovel-webui
-   ```
+# 运行容器
+docker run -d \
+  -p 7765:7765 \
+  -v $(pwd)/config.ini:/app/config.ini \
+  -v $(pwd)/rules:/app/rules \
+  -v $(pwd)/downloads:/app/downloads \
+  --name sonovel \
+  sonovel-webui
+```
 
-3. 访问 Web UI：http://localhost:7765
-
-## 配置说明
+## ⚙️ 配置说明
 
 ### Web 服务配置
 
-在 `config.ini` 文件中，Web 服务已默认启用：
+`config.ini` 中的 Web 服务配置：
+
 ```ini
 [web]
-# 是否开启 Web 服务 (1 是，0 否)
-enabled = 1
-# Web 服务端口
-port = 7765
+enabled = 1      # 开启 Web 服务
+port = 7765      # 服务端口
 ```
 
 ### 数据持久化
 
-Docker 容器使用以下卷挂载来持久化数据：
+Docker 容器使用以下卷挂载：
 
-1. `config.ini` - 配置文件（可在主机上修改）
-2. `rules/` - 规则目录（可在主机上更新规则）
-3. `downloads/` - 下载目录（下载的书籍会保存在这里）
+| 路径 | 说明 |
+|------|------|
+| `config.ini` | 配置文件 |
+| `rules/` | 书源规则目录 |
+| `downloads/` | 下载文件目录 |
 
 ### 环境变量
 
-可以通过环境变量覆盖默认配置：
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `CONFIG_FILE` | `/app/config.ini` | 配置文件路径 |
+| `MODE` | `web` | 运行模式 |
 
-- `CONFIG_FILE` - 配置文件路径（默认：`/app/config.ini`）
-- `MODE` - 运行模式（默认：`web`）
+## 🔧 容器管理
 
-## 管理容器
+### Docker Compose 命令
 
-### 查看日志
 ```bash
-docker logs sonovel
-```
-
-### 停止容器
-```bash
-docker stop sonovel
-```
-
-### 启动容器
-```bash
-docker start sonovel
-```
-
-### 重启容器
-```bash
-docker restart sonovel
-```
-
-### 删除容器
-```bash
-docker rm -f sonovel
-```
-
-## 使用 Docker Compose 管理
-
-### 启动服务
-```bash
+# 启动服务
 docker-compose up -d
-```
 
-### 查看服务状态
-```bash
+# 查看状态
 docker-compose ps
-```
 
-### 查看日志
-```bash
+# 查看日志
 docker-compose logs -f
-```
 
-### 停止服务
-```bash
+# 停止服务
 docker-compose down
-```
 
-### 重新构建并启动
-```bash
+# 重新构建
 docker-compose up -d --build
 ```
 
-## 故障排除
+### Docker 命令
 
-### 端口冲突
-如果端口 7765 已被占用，可以修改 `config.ini` 中的端口号，并更新 `docker-compose.yml` 中的端口映射。
-
-### 权限问题
-确保 `downloads/` 目录对 Docker 容器可写：
 ```bash
-mkdir -p downloads
-chmod 777 downloads
-```
-
-### 容器无法启动
-检查日志以获取详细信息：
-```bash
+# 查看日志
 docker logs sonovel
+
+# 停止容器
+docker stop sonovel
+
+# 启动容器
+docker start sonovel
+
+# 重启容器
+docker restart sonovel
+
+# 删除容器
+docker rm -f sonovel
 ```
 
-## 更新应用程序
+## 🔄 更新应用
 
 1. 下载新的 `app.jar` 文件
-2. 重新构建 Docker 镜像：
+2. 重新构建镜像：
    ```bash
    docker-compose build --no-cache
    ```
@@ -154,14 +123,34 @@ docker logs sonovel
    docker-compose up -d
    ```
 
-## 安全注意事项
+## ❗ 故障排除
 
-1. 默认配置中 Web 服务监听所有网络接口，请在生产环境中考虑防火墙配置
-2. 考虑使用反向代理（如 Nginx）添加 HTTPS 支持
-3. 定期备份 `downloads/` 目录中的重要数据
+### 端口冲突
 
-## 支持与反馈
+修改 `config.ini` 中的端口号，并更新 `docker-compose.yml` 中的端口映射。
 
-如有问题，请参考：
+### 权限问题
+
+确保 `downloads/` 目录可写：
+```bash
+mkdir -p downloads
+chmod 777 downloads
+```
+
+### 容器无法启动
+
+检查日志：
+```bash
+docker logs sonovel
+```
+
+## 🔒 安全建议
+
+1. 生产环境中配置防火墙
+2. 使用反向代理添加 HTTPS 支持
+3. 定期备份 `downloads/` 目录
+
+## 📮 支持
+
 - 项目 GitHub：https://github.com/freeok/so-novel
 - 问题反馈：https://github.com/freeok/so-novel/issues

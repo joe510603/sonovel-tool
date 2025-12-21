@@ -1,5 +1,6 @@
 # 下载的文件
 downloads/
+extracted/
 
 # 日志文件
 *.log
@@ -18,8 +19,20 @@ Thumbs.db
 *.swp
 *.swo
 
+# Kiro IDE
+.kiro/
+
 # 配置文件中的敏感信息（如果有的话）
 # config.ini
 
 # 运行时生成的文件
 *.pid
+
+# Node.js
+novel-craft/node_modules/
+novel-craft/main.js
+novel-craft/main.js.map
+novel-craft/coverage/
+
+# Runtime (macOS app bundle - too large)
+runtime/

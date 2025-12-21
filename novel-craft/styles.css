@@ -1,0 +1,2843 @@
+/* NovelCraft Plugin Styles */
+
+.novel-craft-search-modal {
+  padding: 16px;
+}
+
+.novel-craft-search-input {
+  width: 100%;
+  margin-bottom: 12px;
+}
+
+.novel-craft-search-results {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.novel-craft-book-item {
+  padding: 12px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  cursor: pointer;
+}
+
+.novel-craft-book-item:hover {
+  background-color: var(--background-modifier-hover);
+}
+
+.novel-craft-book-title {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.novel-craft-book-meta {
+  font-size: 0.85em;
+  color: var(--text-muted);
+}
+
+.novel-craft-analysis-panel {
+  padding: 16px;
+}
+
+.novel-craft-mode-selector {
+  margin-bottom: 16px;
+}
+
+.novel-craft-progress {
+  margin-top: 16px;
+}
+
+.novel-craft-progress-bar {
+  height: 8px;
+  background-color: var(--background-modifier-border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.novel-craft-progress-fill {
+  height: 100%;
+  background-color: var(--interactive-accent);
+  transition: width 0.3s ease;
+}
+
+.novel-craft-chat-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.novel-craft-chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+}
+
+.novel-craft-chat-input {
+  padding: 12px;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.novel-craft-message {
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+}
+
+.novel-craft-message-user {
+  background-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+  margin-left: 20%;
+}
+
+.novel-craft-message-assistant {
+  background-color: var(--background-secondary);
+  margin-right: 20%;
+}
+
+.novel-craft-settings-section {
+  margin-bottom: 24px;
+}
+
+.novel-craft-settings-section h3 {
+  margin-bottom: 12px;
+}
+
+.novel-craft-provider-list {
+  margin-top: 12px;
+}
+
+.novel-craft-provider-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+
+.novel-craft-provider-default {
+  background-color: var(--background-modifier-success);
+}
+
+
+/* Settings Tab Styles */
+.novel-craft-provider-container {
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  background-color: var(--background-secondary);
+}
+
+.novel-craft-provider-container h4 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.novel-craft-provider-container .setting-item {
+  border-top: none;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.novel-craft-provider-container .setting-item:last-child {
+  padding-bottom: 0;
+}
+
+
+/* Search Modal Styles */
+.novel-craft-search-modal {
+  min-width: 500px;
+  max-width: 700px;
+}
+
+.novel-craft-search-modal h2 {
+  margin-top: 0;
+  margin-bottom: 16px;
+}
+
+.novel-craft-search-container {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.novel-craft-search-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.novel-craft-search-input:focus {
+  outline: none;
+  border-color: var(--interactive-accent);
+}
+
+.novel-craft-search-button {
+  padding: 8px 16px;
+  background-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.novel-craft-search-button:hover {
+  background-color: var(--interactive-accent-hover);
+}
+
+.novel-craft-status-container {
+  margin-bottom: 12px;
+}
+
+.novel-craft-loading-message {
+  color: var(--text-muted);
+  padding: 8px;
+}
+
+.novel-craft-error-container {
+  background-color: var(--background-modifier-error);
+  border-radius: 4px;
+  padding: 12px;
+}
+
+.novel-craft-error-title {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.novel-craft-error-message {
+  color: var(--text-muted);
+  font-size: 0.9em;
+  margin-bottom: 8px;
+}
+
+.novel-craft-retry-button {
+  padding: 4px 12px;
+  background-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.novel-craft-search-results {
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+}
+
+.novel-craft-no-results {
+  padding: 24px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.novel-craft-book-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  transition: background-color 0.15s ease;
+}
+
+.novel-craft-book-item:last-child {
+  border-bottom: none;
+}
+
+.novel-craft-book-item:hover {
+  background-color: var(--background-modifier-hover);
+}
+
+.novel-craft-book-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.novel-craft-book-title {
+  font-weight: 600;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.novel-craft-book-author {
+  font-weight: normal;
+  color: var(--text-muted);
+}
+
+.novel-craft-book-meta {
+  font-size: 0.85em;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.novel-craft-book-actions {
+  margin-left: 12px;
+  flex-shrink: 0;
+}
+
+.novel-craft-download-button {
+  padding: 6px 12px;
+  background-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.novel-craft-download-button:hover:not(:disabled) {
+  background-color: var(--interactive-accent-hover);
+}
+
+.novel-craft-download-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Download Progress Modal Styles */
+.novel-craft-progress-modal {
+  min-width: 350px;
+  padding: 16px;
+}
+
+.novel-craft-progress-modal h3 {
+  margin-top: 0;
+  margin-bottom: 16px;
+  font-size: 16px;
+}
+
+.novel-craft-progress-bar {
+  height: 8px;
+  background-color: var(--background-modifier-border);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.novel-craft-progress-fill {
+  height: 100%;
+  background-color: var(--interactive-accent);
+  transition: width 0.3s ease;
+}
+
+.novel-craft-progress-text {
+  font-size: 0.9em;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.novel-craft-progress-error {
+  margin-top: 16px;
+  padding: 12px;
+  background-color: var(--background-modifier-error);
+  border-radius: 4px;
+}
+
+.novel-craft-close-button {
+  margin-top: 8px;
+  padding: 6px 16px;
+  background-color: var(--interactive-normal);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.novel-craft-close-button:hover {
+  background-color: var(--interactive-hover);
+}
+
+/* Analysis Panel Styles */
+.novel-craft-analysis-panel {
+  min-width: 450px;
+  max-width: 600px;
+  padding: 12px 16px;
+}
+
+.novel-craft-analysis-panel h2 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  font-size: 16px;
+}
+
+.novel-craft-selector-label {
+  font-weight: 600;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.novel-craft-mode-selector {
+  margin-bottom: 12px;
+}
+
+.novel-craft-mode-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.novel-craft-mode-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.novel-craft-mode-option:hover {
+  background-color: var(--background-modifier-hover);
+}
+
+.novel-craft-mode-option input[type="radio"] {
+  margin-top: 3px;
+}
+
+.novel-craft-mode-option input[type="radio"]:checked + label {
+  color: var(--interactive-accent);
+}
+
+.novel-craft-mode-option label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  cursor: pointer;
+  flex: 1;
+}
+
+.novel-craft-mode-label {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.novel-craft-mode-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.novel-craft-type-selector {
+  margin-bottom: 10px;
+}
+
+.novel-craft-type-selector .setting-item {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+.novel-craft-custom-focus {
+  margin-bottom: 10px;
+}
+
+.novel-craft-custom-focus .setting-item {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+.novel-craft-start-container {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin: 16px 0;
+}
+
+.novel-craft-start-button {
+  padding: 10px 24px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.novel-craft-start-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.novel-craft-progress-section {
+  margin-top: 12px;
+  padding: 12px;
+  background-color: var(--background-secondary);
+  border-radius: 6px;
+}
+
+.novel-craft-progress-stage {
+  font-weight: 600;
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+.novel-craft-progress-text {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.novel-craft-error-text {
+  color: var(--text-error);
+}
+
+/* Chat Panel Styles */
+.novel-craft-chat-panel {
+  min-width: 500px;
+  max-width: 700px;
+  height: 600px;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+}
+
+.novel-craft-chat-panel h2 {
+  margin-top: 0;
+  margin-bottom: 16px;
+  flex-shrink: 0;
+}
+
+.novel-craft-chat-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  flex-shrink: 0;
+}
+
+.novel-craft-chapter-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.novel-craft-chapter-label {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.novel-craft-chapter-selector .setting-item {
+  border: none;
+  padding: 0;
+}
+
+.novel-craft-chapter-selector .setting-item-control {
+  padding: 0;
+}
+
+.novel-craft-save-button {
+  padding: 6px 12px;
+  background-color: var(--interactive-normal);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.novel-craft-save-button:hover {
+  background-color: var(--interactive-hover);
+}
+
+.novel-craft-chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  background-color: var(--background-secondary);
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+.novel-craft-chat-welcome {
+  text-align: center;
+  padding: 24px;
+  color: var(--text-muted);
+}
+
+.novel-craft-chat-welcome p {
+  margin: 8px 0;
+}
+
+.novel-craft-chat-tip {
+  font-size: 13px;
+  opacity: 0.8;
+}
+
+.novel-craft-message {
+  margin-bottom: 16px;
+  padding: 12px;
+  border-radius: 8px;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.novel-craft-message-user {
+  background-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+  margin-left: 15%;
+}
+
+.novel-craft-message-assistant {
+  background-color: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  margin-right: 15%;
+}
+
+.novel-craft-message-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.novel-craft-message-checkbox {
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+}
+
+.novel-craft-message-role {
+  font-weight: 600;
+}
+
+.novel-craft-message-content {
+  line-height: 1.6;
+  word-wrap: break-word;
+}
+
+.novel-craft-message-content code {
+  background-color: var(--background-modifier-border);
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-size: 0.9em;
+}
+
+.novel-craft-message-loading {
+  text-align: center;
+  padding: 16px;
+  color: var(--text-muted);
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.novel-craft-chat-input {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.novel-craft-chat-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  font-size: 14px;
+  resize: vertical;
+  min-height: 60px;
+  font-family: inherit;
+}
+
+.novel-craft-chat-textarea:focus {
+  outline: none;
+  border-color: var(--interactive-accent);
+}
+
+.novel-craft-chat-buttons {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.novel-craft-send-button {
+  padding: 8px 20px;
+  font-size: 14px;
+}
+
+.novel-craft-send-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+
+/* Loading Indicator Styles */
+.novel-craft-loading-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px;
+  color: var(--text-muted);
+}
+
+.novel-craft-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--background-modifier-border);
+  border-top-color: var(--interactive-accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.novel-craft-loading-text {
+  font-size: 14px;
+}
+
+/* Error Display Styles */
+.novel-craft-error-display {
+  padding: 16px;
+  background-color: var(--background-modifier-error);
+  border-radius: 8px;
+  margin: 12px 0;
+}
+
+.novel-craft-error-display .novel-craft-error-title {
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--text-error);
+}
+
+.novel-craft-error-display .novel-craft-error-message {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+
+.novel-craft-error-display .novel-craft-retry-button {
+  padding: 6px 16px;
+  background-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background-color 0.15s ease;
+}
+
+.novel-craft-error-display .novel-craft-retry-button:hover {
+  background-color: var(--interactive-accent-hover);
+}
+
+/* Status Badge Styles */
+.novel-craft-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.novel-craft-status-badge.success {
+  background-color: var(--background-modifier-success);
+  color: var(--text-success);
+}
+
+.novel-craft-status-badge.error {
+  background-color: var(--background-modifier-error);
+  color: var(--text-error);
+}
+
+.novel-craft-status-badge.warning {
+  background-color: var(--background-modifier-warning);
+  color: var(--text-warning);
+}
+
+.novel-craft-status-badge.info {
+  background-color: var(--background-modifier-info);
+  color: var(--text-accent);
+}
+
+/* Overlay Loading Styles */
+.novel-craft-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  border-radius: inherit;
+}
+
+.novel-craft-overlay-content {
+  background-color: var(--background-primary);
+  padding: 24px 32px;
+  border-radius: 8px;
+  text-align: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.novel-craft-overlay-content .novel-craft-spinner {
+  width: 32px;
+  height: 32px;
+  margin: 0 auto 12px;
+}
+
+.novel-craft-overlay-content .novel-craft-loading-text {
+  font-size: 14px;
+  color: var(--text-normal);
+}
+
+/* Disabled State Styles */
+.novel-craft-disabled {
+  opacity: 0.5;
+  pointer-events: none;
+  cursor: not-allowed;
+}
+
+/* Toast Animation */
+.novel-craft-toast-enter {
+  animation: toastEnter 0.3s ease;
+}
+
+.novel-craft-toast-exit {
+  animation: toastExit 0.3s ease;
+}
+
+@keyframes toastEnter {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes toastExit {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+}
+
+/* Service Status Indicator */
+.novel-craft-service-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background-color: var(--background-secondary);
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.novel-craft-service-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.novel-craft-service-status-dot.online {
+  background-color: var(--color-green);
+}
+
+.novel-craft-service-status-dot.offline {
+  background-color: var(--color-red);
+}
+
+.novel-craft-service-status-dot.checking {
+  background-color: var(--color-yellow);
+  animation: pulse 1s infinite;
+}
+
+
+/* Enhanced Loading and Error Styles */
+
+/* Loading Container */
+.novel-craft-loading-container {
+  position: relative;
+  min-height: 100px;
+}
+
+.novel-craft-content-wrapper {
+  display: block;
+}
+
+.novel-craft-loading-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100px;
+  padding: 24px;
+}
+
+.novel-craft-error-wrapper {
+  padding: 16px;
+}
+
+/* Action Button Loading State */
+.novel-craft-action-button {
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.novel-craft-button-loading {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.novel-craft-button-loading::after {
+  content: '';
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 12px;
+  height: 12px;
+  border: 2px solid transparent;
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+/* Enhanced Error Display */
+.novel-craft-error-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 24px;
+  background-color: var(--background-modifier-error);
+  border-radius: 8px;
+  margin: 12px 0;
+}
+
+.novel-craft-error-display .novel-craft-error-icon {
+  font-size: 32px;
+  margin-bottom: 12px;
+}
+
+.novel-craft-error-display .novel-craft-error-title {
+  font-weight: 600;
+  font-size: 16px;
+  margin-bottom: 8px;
+  color: var(--text-error);
+}
+
+.novel-craft-error-display .novel-craft-error-message {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+  line-height: 1.5;
+  max-width: 400px;
+}
+
+.novel-craft-error-display .novel-craft-retry-button {
+  padding: 8px 20px;
+  background-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.15s ease;
+}
+
+.novel-craft-error-display .novel-craft-retry-button:hover {
+  background-color: var(--interactive-accent-hover);
+}
+
+/* Inline Loading Indicator */
+.novel-craft-inline-loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.novel-craft-inline-loading .novel-craft-spinner {
+  width: 14px;
+  height: 14px;
+}
+
+/* Full Page Loading Overlay */
+.novel-craft-full-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.novel-craft-full-overlay .novel-craft-overlay-content {
+  background-color: var(--background-primary);
+  padding: 32px 48px;
+  border-radius: 12px;
+  text-align: center;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  max-width: 400px;
+}
+
+.novel-craft-full-overlay .novel-craft-spinner {
+  width: 40px;
+  height: 40px;
+  margin: 0 auto 16px;
+  border-width: 3px;
+}
+
+.novel-craft-full-overlay .novel-craft-loading-text {
+  font-size: 16px;
+  color: var(--text-normal);
+  margin-bottom: 8px;
+}
+
+.novel-craft-full-overlay .novel-craft-loading-subtext {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* Progress with Steps */
+.novel-craft-progress-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.novel-craft-progress-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.novel-craft-progress-step.active {
+  color: var(--text-normal);
+  font-weight: 500;
+}
+
+.novel-craft-progress-step.completed {
+  color: var(--text-success);
+}
+
+.novel-craft-progress-step-icon {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.novel-craft-progress-step.active .novel-craft-progress-step-icon {
+  animation: pulse 1s infinite;
+}
+
+/* Skeleton Loading */
+.novel-craft-skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--background-modifier-border) 25%,
+    var(--background-secondary) 50%,
+    var(--background-modifier-border) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s infinite;
+  border-radius: 4px;
+}
+
+.novel-craft-skeleton-text {
+  height: 14px;
+  margin-bottom: 8px;
+}
+
+.novel-craft-skeleton-text:last-child {
+  width: 60%;
+}
+
+.novel-craft-skeleton-title {
+  height: 20px;
+  width: 40%;
+  margin-bottom: 16px;
+}
+
+@keyframes skeleton-loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Toast Notification Enhancements */
+.notice-container .notice {
+  animation: toastEnter 0.3s ease;
+}
+
+/* Disabled Overlay */
+.novel-craft-disabled-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(var(--background-primary-rgb), 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  border-radius: inherit;
+}
+
+.novel-craft-disabled-message {
+  background-color: var(--background-primary);
+  padding: 12px 20px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--text-muted);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Connection Status Indicator */
+.novel-craft-connection-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  background-color: var(--background-secondary);
+}
+
+.novel-craft-connection-status.connected {
+  color: var(--text-success);
+}
+
+.novel-craft-connection-status.disconnected {
+  color: var(--text-error);
+}
+
+.novel-craft-connection-status.connecting {
+  color: var(--text-warning);
+}
+
+.novel-craft-connection-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: currentColor;
+}
+
+.novel-craft-connection-status.connecting .novel-craft-connection-dot {
+  animation: pulse 1s infinite;
+}
+
+
+/* ==================== Main Panel Styles ==================== */
+
+.novel-craft-main-panel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.nc-panel-content {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+}
+
+.nc-panel-header {
+  margin-bottom: 12px;
+}
+
+.nc-panel-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+/* Tabs */
+.nc-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  padding-bottom: 8px;
+}
+
+.nc-tab {
+  padding: 6px 12px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-muted);
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+.nc-tab:hover {
+  background-color: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.nc-tab.active {
+  background-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+/* Content Area */
+.nc-content-area {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.nc-tab-panel {
+  display: none;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.nc-tab-panel.active {
+  display: flex;
+}
+
+/* Search Box */
+.nc-search-box {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.nc-search-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  font-size: 13px;
+  background-color: var(--background-primary);
+}
+
+.nc-search-input:focus {
+  outline: none;
+  border-color: var(--interactive-accent);
+}
+
+/* Buttons */
+.nc-btn {
+  padding: 6px 12px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  background-color: var(--background-secondary);
+  color: var(--text-normal);
+  transition: all 0.15s ease;
+}
+
+.nc-btn:hover:not(:disabled) {
+  background-color: var(--background-modifier-hover);
+}
+
+.nc-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.nc-btn-primary {
+  background-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border-color: var(--interactive-accent);
+}
+
+.nc-btn-primary:hover:not(:disabled) {
+  background-color: var(--interactive-accent-hover);
+}
+
+.nc-btn-small {
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+/* Section Header */
+.nc-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+/* Book List */
+.nc-book-list {
+  flex: 1;
+  overflow-y: auto;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  background-color: var(--background-secondary);
+}
+
+.nc-book-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  transition: background-color 0.15s ease;
+}
+
+.nc-book-item:last-child {
+  border-bottom: none;
+}
+
+.nc-book-item:hover {
+  background-color: var(--background-modifier-hover);
+}
+
+.nc-book-info {
+  flex: 1;
+  min-width: 0;
+  margin-right: 8px;
+}
+
+.nc-book-title {
+  font-weight: 500;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 2px;
+}
+
+.nc-book-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nc-book-chapter {
+  font-size: 11px;
+  color: var(--text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nc-book-actions {
+  flex-shrink: 0;
+}
+
+/* Search Results */
+.nc-search-results {
+  flex: 1;
+  overflow-y: auto;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  background-color: var(--background-secondary);
+}
+
+/* Hints and Status */
+.nc-hint {
+  padding: 24px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.nc-loading {
+  padding: 24px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.nc-error {
+  padding: 16px;
+  text-align: center;
+  color: var(--text-error);
+  font-size: 13px;
+}
+
+/* Scrollbar Styling */
+.nc-book-list::-webkit-scrollbar,
+.nc-search-results::-webkit-scrollbar {
+  width: 6px;
+}
+
+.nc-book-list::-webkit-scrollbar-track,
+.nc-search-results::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.nc-book-list::-webkit-scrollbar-thumb,
+.nc-search-results::-webkit-scrollbar-thumb {
+  background-color: var(--background-modifier-border);
+  border-radius: 3px;
+}
+
+.nc-book-list::-webkit-scrollbar-thumb:hover,
+.nc-search-results::-webkit-scrollbar-thumb:hover {
+  background-color: var(--background-modifier-border-hover);
+}
+
+
+/* ==================== Enhanced Analysis Panel Styles ==================== */
+
+.nc-analysis-expanded {
+  min-width: 550px;
+  max-width: 700px;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.nc-analysis-expanded .modal-content {
+  max-height: calc(85vh - 40px);
+  overflow-y: auto;
+  padding-bottom: 20px;
+}
+
+.nc-config-section {
+  transition: all 0.3s ease;
+}
+
+.nc-config-section.collapsed {
+  display: none;
+}
+
+/* Results Section */
+.nc-results-section {
+  margin-top: 12px;
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  background-color: var(--background-secondary);
+  flex-shrink: 0;
+}
+
+.nc-results-header {
+  position: sticky;
+  top: 0;
+  background-color: var(--background-secondary);
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  z-index: 1;
+}
+
+.nc-results-title {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+/* Result Item */
+.nc-result-item {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  transition: background-color 0.15s ease;
+}
+
+.nc-result-item:last-child {
+  border-bottom: none;
+}
+
+.nc-result-item:hover {
+  background-color: var(--background-modifier-hover);
+}
+
+.nc-result-item-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.nc-result-status-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.nc-result-stage-name {
+  font-weight: 600;
+  font-size: 13px;
+  flex: 1;
+}
+
+.nc-result-duration {
+  font-size: 11px;
+  color: var(--text-muted);
+  background-color: var(--background-modifier-border);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.nc-result-duration.nc-running {
+  animation: pulse 1s infinite;
+}
+
+.nc-result-message {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  margin-bottom: 8px;
+}
+
+/* Result Status Colors */
+.nc-result-pending {
+  opacity: 0.6;
+}
+
+.nc-result-running {
+  background-color: var(--background-modifier-hover);
+}
+
+.nc-result-running .nc-result-status-icon {
+  animation: spin 1s linear infinite;
+}
+
+.nc-result-completed .nc-result-stage-name {
+  color: var(--text-success);
+}
+
+.nc-result-error {
+  background-color: var(--background-modifier-error);
+}
+
+.nc-result-error .nc-result-stage-name {
+  color: var(--text-error);
+}
+
+/* Result Toggle Button */
+.nc-result-toggle {
+  padding: 4px 10px;
+  font-size: 11px;
+  background-color: var(--background-modifier-border);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: all 0.15s ease;
+}
+
+.nc-result-toggle:hover {
+  background-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+/* Result Content */
+.nc-result-content {
+  margin-top: 8px;
+  padding: 12px;
+  background-color: var(--background-primary);
+  border-radius: 6px;
+  border: 1px solid var(--background-modifier-border);
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.nc-result-json {
+  font-family: var(--font-monospace);
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+  color: var(--text-normal);
+}
+
+.nc-result-text {
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Scrollbar for results */
+.nc-results-section::-webkit-scrollbar,
+.nc-result-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.nc-results-section::-webkit-scrollbar-track,
+.nc-result-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.nc-results-section::-webkit-scrollbar-thumb,
+.nc-result-content::-webkit-scrollbar-thumb {
+  background-color: var(--background-modifier-border);
+  border-radius: 3px;
+}
+
+.nc-results-section::-webkit-scrollbar-thumb:hover,
+.nc-result-content::-webkit-scrollbar-thumb:hover {
+  background-color: var(--background-modifier-border-hover);
+}
+
+/* Animation for running status */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Progress section enhancements */
+.novel-craft-progress-section {
+  background-color: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+}
+
+.novel-craft-progress-stage {
+  font-size: 15px;
+}
+
+.novel-craft-progress-text {
+  font-size: 12px;
+  min-height: 20px;
+}
+
+
+/* ==================== Chapter Range Selector Styles ==================== */
+
+.nc-book-info-section {
+  margin-bottom: 12px;
+  padding: 10px;
+  background-color: var(--background-secondary);
+  border-radius: 6px;
+  border: 1px solid var(--background-modifier-border);
+}
+
+.nc-loading-hint {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.nc-book-info-loaded {
+  padding: 8px 12px;
+}
+
+.nc-book-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 4px 12px;
+}
+
+.nc-info-item {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+}
+
+.nc-info-label {
+  color: var(--text-muted);
+}
+
+.nc-info-value {
+  font-weight: 500;
+}
+
+/* Chapter Range Selector */
+.nc-chapter-range-selector {
+  margin-bottom: 12px;
+}
+
+.nc-chapter-range-selector .setting-item {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.nc-range-toggle {
+  display: flex;
+  gap: 4px;
+}
+
+.nc-range-btn {
+  padding: 6px 16px;
+  border: 1px solid var(--background-modifier-border);
+  background-color: var(--background-secondary);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.15s ease;
+}
+
+.nc-range-btn:hover {
+  background-color: var(--background-modifier-hover);
+}
+
+.nc-range-btn-active {
+  background-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border-color: var(--interactive-accent);
+}
+
+.nc-custom-range {
+  margin-top: 8px;
+  padding: 10px;
+  background-color: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+}
+
+.nc-range-inputs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.nc-range-input-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+}
+
+.nc-range-input {
+  width: 70px;
+  padding: 4px 8px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  font-size: 13px;
+  text-align: center;
+}
+
+.nc-range-input:focus {
+  outline: none;
+  border-color: var(--interactive-accent);
+}
+
+.nc-quick-range-btns {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.nc-quick-btn {
+  padding: 4px 10px;
+  font-size: 12px;
+  background-color: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.nc-quick-btn:hover {
+  background-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border-color: var(--interactive-accent);
+}
+
+.nc-range-info {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: 4px 8px;
+  background-color: var(--background-modifier-info);
+  border-radius: 4px;
+}
+
+
+/* Open file button in results */
+.nc-open-file-btn {
+  background-color: var(--interactive-accent) !important;
+  color: var(--text-on-accent) !important;
+  margin-left: 8px;
+}
+
+.nc-open-file-btn:hover {
+  background-color: var(--interactive-accent-hover) !important;
+}
+
+/* Generated file result item */
+.nc-result-item .nc-result-stage-name {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+
+/* Control buttons for pause/stop */
+.nc-control-buttons {
+  display: flex;
+  gap: 8px;
+  margin-left: 12px;
+}
+
+.nc-control-btn {
+  padding: 8px 16px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.15s ease;
+  background-color: var(--background-secondary);
+}
+
+.nc-control-btn:hover {
+  background-color: var(--background-modifier-hover);
+}
+
+.nc-pause-btn {
+  border-color: var(--color-yellow);
+  color: var(--color-yellow);
+}
+
+.nc-pause-btn:hover {
+  background-color: rgba(255, 193, 7, 0.1);
+}
+
+.nc-resume-btn {
+  border-color: var(--color-green);
+  color: var(--color-green);
+  background-color: rgba(40, 167, 69, 0.1);
+}
+
+.nc-resume-btn:hover {
+  background-color: rgba(40, 167, 69, 0.2);
+}
+
+.nc-stop-btn {
+  border-color: var(--color-red);
+  color: var(--color-red);
+}
+
+.nc-stop-btn:hover {
+  background-color: rgba(220, 53, 69, 0.1);
+}
+
+
+/* ==================== Analysis View (Sidebar) Styles ==================== */
+
+.nc-analysis-view {
+  height: 100%;
+  overflow: hidden;
+}
+
+.nc-analysis-content {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  overflow-y: auto;
+}
+
+/* Welcome Section */
+.nc-welcome-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.nc-welcome-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.nc-welcome-title {
+  margin: 0 0 8px 0;
+  color: var(--text-normal);
+}
+
+.nc-welcome-hint {
+  margin: 0;
+  font-size: 13px;
+}
+
+/* Section Title */
+.nc-section-title {
+  margin: 0 0 12px 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+/* Mode Selector in View */
+.nc-mode-selector {
+  margin-bottom: 12px;
+}
+
+.nc-mode-selector .nc-label {
+  font-weight: 600;
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.nc-mode-selector .nc-mode-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.nc-mode-selector .nc-mode-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.nc-mode-selector .nc-mode-option:hover {
+  background-color: var(--background-modifier-hover);
+}
+
+.nc-mode-selector .nc-mode-option label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  cursor: pointer;
+  flex: 1;
+}
+
+.nc-mode-selector .nc-mode-label {
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.nc-mode-selector .nc-mode-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* Type Selector in View */
+.nc-type-selector {
+  margin-bottom: 12px;
+}
+
+.nc-type-selector .setting-item {
+  padding: 6px 0;
+  border: none;
+}
+
+/* Range Selector in View */
+.nc-range-selector {
+  margin-bottom: 12px;
+}
+
+.nc-range-selector .setting-item {
+  padding: 6px 0;
+  border: none;
+}
+
+/* Button Area */
+.nc-button-area {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0;
+  flex-wrap: wrap;
+}
+
+.nc-btn-large {
+  padding: 10px 24px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* Progress Section in View */
+.nc-progress-section {
+  margin-bottom: 12px;
+  padding: 12px;
+  background-color: var(--background-secondary);
+  border-radius: 6px;
+}
+
+.nc-progress-stage {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 8px;
+  text-align: center;
+}
+
+.nc-progress-bar {
+  height: 6px;
+  background-color: var(--background-modifier-border);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+
+.nc-progress-fill {
+  height: 100%;
+  background-color: var(--interactive-accent);
+  transition: width 0.3s ease;
+}
+
+.nc-progress-text {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* Results in View - more compact */
+.nc-analysis-view .nc-results-section {
+  flex: 1;
+  min-height: 150px;
+  margin-top: 0;
+}
+
+
+/* ============ Prompt Editor Styles ============ */
+
+.nc-prompt-section {
+  margin-top: 24px;
+  padding: 16px;
+  background: var(--background-secondary);
+  border-radius: 8px;
+}
+
+.nc-prompt-section h3 {
+  margin-top: 0;
+  margin-bottom: 16px;
+  font-size: 1.1em;
+}
+
+.nc-prompt-section h4 {
+  margin-top: 16px;
+  margin-bottom: 8px;
+  font-size: 0.95em;
+  color: var(--text-muted);
+}
+
+.nc-prompt-category {
+  margin-bottom: 16px;
+}
+
+.nc-prompt-item {
+  margin-bottom: 12px;
+  padding: 12px;
+  background: var(--background-primary);
+  border-radius: 6px;
+  border: 1px solid var(--background-modifier-border);
+}
+
+.nc-prompt-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nc-prompt-name {
+  font-weight: 500;
+  flex: 1;
+}
+
+.nc-prompt-status {
+  font-size: 0.85em;
+  color: var(--text-muted);
+}
+
+.nc-prompt-status.nc-customized {
+  color: var(--interactive-accent);
+}
+
+.nc-prompt-toggle {
+  padding: 4px 12px;
+  font-size: 0.85em;
+  background: var(--background-modifier-hover);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.nc-prompt-toggle:hover {
+  background: var(--background-modifier-border);
+}
+
+.nc-prompt-editor {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.nc-prompt-default {
+  margin-bottom: 12px;
+}
+
+.nc-prompt-label {
+  font-size: 0.85em;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.nc-prompt-preview {
+  max-height: 150px;
+  overflow-y: auto;
+  padding: 8px;
+  background: var(--background-secondary);
+  border-radius: 4px;
+  font-size: 0.85em;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.nc-prompt-custom {
+  margin-bottom: 12px;
+}
+
+.nc-prompt-textarea {
+  width: 100%;
+  min-height: 150px;
+  padding: 8px;
+  font-family: var(--font-monospace);
+  font-size: 0.9em;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  background: var(--background-primary);
+  resize: vertical;
+}
+
+.nc-prompt-textarea:focus {
+  border-color: var(--interactive-accent);
+  outline: none;
+}
+
+.nc-prompt-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.nc-prompt-buttons .nc-btn {
+  padding: 6px 12px;
+  font-size: 0.85em;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  background: var(--background-primary);
+  cursor: pointer;
+}
+
+.nc-prompt-buttons .nc-btn:hover {
+  background: var(--background-modifier-hover);
+}
+
+.nc-prompt-buttons .nc-btn-primary {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border-color: var(--interactive-accent);
+}
+
+.nc-prompt-buttons .nc-btn-primary:hover {
+  background: var(--interactive-accent-hover);
+}
+
+/* Custom type input */
+.nc-custom-type-input {
+  margin-top: 8px;
+  padding: 8px;
+  background: var(--background-secondary);
+  border-radius: 4px;
+}
+
+
+/* ============ Token Estimate & Usage Styles ============ */
+
+.nc-token-estimate,
+.nc-token-usage {
+  margin: 12px 0;
+  padding: 12px;
+  background: var(--background-secondary);
+  border-radius: 8px;
+  border: 1px solid var(--background-modifier-border);
+}
+
+.nc-token-estimate-loaded {
+  background: linear-gradient(135deg, var(--background-secondary) 0%, var(--background-primary) 100%);
+}
+
+.nc-token-header,
+.nc-usage-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.nc-token-title,
+.nc-usage-title {
+  font-weight: 600;
+  font-size: 0.95em;
+}
+
+.nc-token-confidence {
+  font-size: 0.8em;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.nc-confidence-high {
+  background: var(--color-green);
+  color: white;
+}
+
+.nc-confidence-medium {
+  background: var(--color-yellow);
+  color: var(--text-normal);
+}
+
+.nc-confidence-low {
+  background: var(--color-orange);
+  color: white;
+}
+
+.nc-token-stats {
+  display: flex;
+  gap: 16px;
+  margin: 8px 0;
+}
+
+.nc-token-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  padding: 8px;
+  background: var(--background-primary);
+  border-radius: 6px;
+}
+
+.nc-token-stat.nc-token-total {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+.nc-token-stat.nc-token-total .nc-token-label {
+  color: var(--text-on-accent);
+  opacity: 0.9;
+}
+
+.nc-token-label {
+  font-size: 0.75em;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
+.nc-token-value {
+  font-size: 1.1em;
+  font-weight: 600;
+}
+
+.nc-token-note {
+  font-size: 0.8em;
+  color: var(--text-muted);
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.nc-token-toggle {
+  width: 100%;
+  margin-top: 8px;
+  padding: 6px;
+  font-size: 0.85em;
+  background: transparent;
+  border: 1px dashed var(--background-modifier-border);
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--text-muted);
+}
+
+.nc-token-toggle:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.nc-token-details {
+  margin-top: 8px;
+  padding: 8px;
+  background: var(--background-primary);
+  border-radius: 4px;
+}
+
+.nc-token-detail-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  font-size: 0.85em;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.nc-token-detail-row:last-child {
+  border-bottom: none;
+}
+
+.nc-detail-stage {
+  color: var(--text-normal);
+}
+
+.nc-detail-tokens {
+  color: var(--text-muted);
+  font-family: var(--font-monospace);
+  font-size: 0.9em;
+}
+
+/* Token usage in progress section */
+.nc-token-usage {
+  margin-top: 12px;
+}
+
+
+/* ============ Token Stats in Settings ============ */
+
+.nc-token-stats-container {
+  margin: 16px 0;
+}
+
+.nc-stats-section {
+  margin-bottom: 20px;
+  padding: 16px;
+  background: var(--background-secondary);
+  border-radius: 8px;
+}
+
+.nc-stats-section h3 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  font-size: 1em;
+}
+
+.nc-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+}
+
+.nc-stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px;
+  background: var(--background-primary);
+  border-radius: 6px;
+  text-align: center;
+}
+
+.nc-stat-item.nc-stat-total {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+.nc-stat-item.nc-stat-total .nc-stat-label {
+  color: var(--text-on-accent);
+  opacity: 0.9;
+}
+
+.nc-stat-label {
+  font-size: 0.8em;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.nc-stat-value {
+  font-size: 1.3em;
+  font-weight: 600;
+}
+
+.nc-stats-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.nc-stats-list-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--background-primary);
+  border-radius: 4px;
+}
+
+.nc-stats-book-name {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 200px;
+}
+
+.nc-stats-book-tokens {
+  font-family: var(--font-monospace);
+  color: var(--text-muted);
+}
+
+
+/* ============ Main Panel Footer ============ */
+
+.nc-panel-footer {
+  padding: 12px;
+  border-top: 1px solid var(--background-modifier-border);
+  background: var(--background-secondary);
+  margin-top: auto;
+}
+
+.nc-btn-chat {
+  width: 100%;
+  padding: 10px 16px;
+  font-size: 1em;
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.nc-btn-chat:hover:not(:disabled) {
+  background: var(--interactive-accent-hover);
+}
+
+.nc-btn-chat.nc-btn-disabled,
+.nc-btn-chat:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.nc-footer-hint {
+  margin-top: 8px;
+  font-size: 0.8em;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* Make panel content flex */
+.nc-panel-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.nc-content-area {
+  flex: 1;
+  overflow-y: auto;
+}
+
+
+/* ============ Chat View (Sidebar) Styles ============ */
+
+.nc-chat-view {
+  height: 100%;
+  overflow: hidden;
+}
+
+.nc-chat-content {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Chat Welcome Section */
+.nc-chat-view .nc-welcome-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  text-align: center;
+  color: var(--text-muted);
+  padding: 24px;
+}
+
+.nc-chat-view .nc-welcome-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.nc-chat-view .nc-welcome-title {
+  margin: 0 0 8px 0;
+  color: var(--text-normal);
+}
+
+.nc-chat-view .nc-welcome-hint {
+  margin: 0;
+  font-size: 13px;
+}
+
+/* Chat Section */
+.nc-chat-section {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 12px;
+  overflow: hidden;
+}
+
+.nc-chat-header {
+  flex-shrink: 0;
+  margin-bottom: 8px;
+}
+
+.nc-chat-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Chat Toolbar */
+.nc-chat-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--background-modifier-border);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.nc-chapter-select {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.nc-select-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.nc-select {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 8px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  font-size: 12px;
+  background: var(--background-primary);
+}
+
+.nc-select:focus {
+  outline: none;
+  border-color: var(--interactive-accent);
+}
+
+/* Chat Messages */
+.nc-chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  background-color: var(--background-secondary);
+  border-radius: 8px;
+  margin: 8px 0;
+}
+
+.nc-chat-welcome-msg {
+  text-align: center;
+  padding: 16px;
+  color: var(--text-muted);
+}
+
+.nc-chat-welcome-msg p {
+  margin: 8px 0;
+}
+
+.nc-chat-welcome-msg .nc-hint {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.nc-example-questions {
+  text-align: left;
+  margin: 8px 0;
+  padding-left: 20px;
+  font-size: 12px;
+}
+
+.nc-example-questions li {
+  margin: 4px 0;
+  cursor: pointer;
+  color: var(--interactive-accent);
+}
+
+.nc-example-questions li:hover {
+  text-decoration: underline;
+}
+
+/* Chat Message */
+.nc-message {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  animation: fadeIn 0.2s ease;
+}
+
+.nc-message-user {
+  background-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+  margin-left: 15%;
+}
+
+.nc-message-assistant {
+  background-color: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  margin-right: 15%;
+}
+
+.nc-message-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+.nc-message-role {
+  font-weight: 600;
+}
+
+.nc-message-content {
+  line-height: 1.6;
+  word-wrap: break-word;
+  font-size: 13px;
+}
+
+.nc-message-content code {
+  background-color: var(--background-modifier-border);
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-size: 0.9em;
+}
+
+/* Typing indicator */
+.nc-typing {
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+/* Chat Status */
+.nc-chat-status {
+  padding: 8px 12px;
+  background: var(--background-modifier-info);
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+  flex-shrink: 0;
+  animation: pulse 1.5s infinite;
+}
+
+/* Chat Input Area */
+.nc-chat-input-area {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.nc-chat-textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  font-size: 13px;
+  resize: vertical;
+  min-height: 50px;
+  max-height: 150px;
+  font-family: inherit;
+  background: var(--background-primary);
+}
+
+.nc-chat-textarea:focus {
+  outline: none;
+  border-color: var(--interactive-accent);
+}
+
+.nc-chat-btn-area {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Scrollbar for chat messages */
+.nc-chat-messages::-webkit-scrollbar {
+  width: 6px;
+}
+
+.nc-chat-messages::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.nc-chat-messages::-webkit-scrollbar-thumb {
+  background-color: var(--background-modifier-border);
+  border-radius: 3px;
+}
+
+.nc-chat-messages::-webkit-scrollbar-thumb:hover {
+  background-color: var(--background-modifier-border-hover);
+}
+
+
+/* ============ Analysis Folder Selection Styles ============ */
+
+.nc-analysis-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 16px 0;
+  max-height: 300px;
+  overflow-y: auto;
+  width: 100%;
+}
+
+.nc-analysis-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.nc-analysis-item:hover {
+  background: var(--background-modifier-hover);
+  border-color: var(--interactive-accent);
+}
+
+.nc-analysis-name {
+  font-size: 13px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  margin-right: 8px;
+}
+
+/* Chat title row with back button */
+.nc-chat-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.nc-chat-title-row .nc-chat-title {
+  flex: 1;
+  margin: 0;
+}
+
+/* Toolbar hint text */
+.nc-toolbar-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  flex: 1;
+}
+
+/* Welcome section adjustments for selection mode */
+.nc-chat-view .nc-welcome-section {
+  align-items: stretch;
+  padding: 16px;
+}
+
+.nc-chat-view .nc-welcome-section .nc-welcome-icon {
+  text-align: center;
+}
+
+.nc-chat-view .nc-welcome-section .nc-welcome-title {
+  text-align: center;
+}
+
+.nc-chat-view .nc-welcome-section .nc-welcome-hint {
+  text-align: center;
+}
+
+
+/* ============ Document Format Support Styles ============ */
+
+.nc-format-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: 4px 8px;
+  margin-bottom: 8px;
+  background: var(--background-secondary);
+  border-radius: 4px;
+}
+
+.nc-format-header {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 8px 12px 4px;
+  background: var(--background-modifier-border);
+  border-bottom: 1px solid var(--background-modifier-border);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.nc-format-header:not(:first-child) {
+  margin-top: 8px;
+}
