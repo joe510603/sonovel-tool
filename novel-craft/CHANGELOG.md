@@ -34,12 +34,20 @@
 - 可选择合并模式：追加模式或智能合并模式
 - 新增 `IncrementalAnalysisSettings` 类型定义
 
+#### Windows 支持
+- 新增 `run-windows.bat` 启动脚本
+- 自动检测 Java 环境
+- 提示 Java 下载地址（如未安装）
+
 ### 变更
 - `AnalysisView.ts` 新增分批建议相关逻辑和 UI 元素
 - `AnalysisService.ts` 新增 `analyzeBatched()` 方法
 - `SettingTab.ts` 新增分析设置配置区域
 - `types/index.ts` 新增增量分析相关类型定义
 - `styles.css` 新增 `.nc-batch-suggestion-*` 系列样式类
+
+### 修复
+- 修复 Windows 批处理脚本中文编码问题（使用纯英文避免兼容性问题）
 
 ---
 
