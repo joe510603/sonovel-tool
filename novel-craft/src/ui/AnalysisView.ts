@@ -18,11 +18,15 @@ import {
   AnalysisResult,
   ParsedBook,
   NovelCraftSettings,
-  TokenUsage
+  TokenUsage,
+  AnalysisMetadata,
+  IncrementalMode
 } from '../types';
 import { AnalysisService, AnalysisController, AnalysisStoppedError } from '../services/AnalysisService';
 import { ParserFactory } from '../core/ParserFactory';
 import { LLMService } from '../services/LLMService';
+import { MetadataService } from '../services/MetadataService';
+import { CheckpointService, AnalysisCheckpoint } from '../services/CheckpointService';
 import { showSuccess, showWarning, handleError, showInfo } from './NotificationUtils';
 import { getAllNovelTypes } from '../services/PromptTemplates';
 import { TokenTracker, TokenEstimate } from '../services/TokenTracker';
@@ -48,9 +52,27 @@ interface StageResultItem {
   generatedFile?: string;
 }
 
+/**
+ * 分批分析建议阈值（章节数）
+ * Requirements: 1.3.1.1
+ */
+const BATCH_SUGGESTION_THRESHOLD = 50;
+
+/**
+ * 分批建议配置
+ */
+interface BatchSuggestion {
+  shouldBatch: boolean;
+  recommendedBatchSize: number;
+  totalBatches: number;
+  reason: string;
+}
+
 export class AnalysisView extends ItemView {
   private settings: NovelCraftSettings;
   private llmService: LLMService;
+  private metadataService: MetadataService;
+  private checkpointService: CheckpointService;
   private epubPath: string = '';
   private onAnalysisComplete?: (result: AnalysisResult, book: ParsedBook) => void;
   private onTokenUsageUpdate?: (records: import('../types').TokenUsageRecord[]) => void;
@@ -70,6 +92,9 @@ export class AnalysisView extends ItemView {
   private currentBook: ParsedBook | null = null;
   private tokenTracker: TokenTracker;
   private sessionTokenUsage: TokenUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+  private currentMetadata: AnalysisMetadata | null = null;
+  private currentCheckpoint: AnalysisCheckpoint | null = null;
+  private selectedIncrementalMode: IncrementalMode | null = null;
 
   // UI 元素
   private mainContent: HTMLElement;
@@ -78,6 +103,11 @@ export class AnalysisView extends ItemView {
   private progressSection: HTMLElement;
   private resultsSection: HTMLElement;
   private bookInfoEl: HTMLElement;
+  private metadataStatusEl: HTMLElement;
+  private checkpointStatusEl: HTMLElement;
+  private incrementalModeSection: HTMLElement;
+  private chapterRangeSection: HTMLElement;
+  private batchSuggestionEl: HTMLElement;
   private startButton: HTMLButtonElement;
   private customTypeContainer: HTMLElement;
   private controlButtons: HTMLElement;
@@ -98,6 +128,8 @@ export class AnalysisView extends ItemView {
     super(leaf);
     this.settings = settings;
     this.llmService = llmService;
+    this.metadataService = new MetadataService(this.app);
+    this.checkpointService = new CheckpointService(this.app);
     this.selectedMode = settings.defaultAnalysisMode;
     this.selectedNovelType = settings.defaultNovelType;
     this.onTokenUsageUpdate = onTokenUsageUpdate;
@@ -179,6 +211,9 @@ export class AnalysisView extends ItemView {
     this.analysisController = null;
     this.currentBook = null;
     this.sessionTokenUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+    this.currentMetadata = null;
+    this.currentCheckpoint = null;
+    this.selectedIncrementalMode = null;
     
     // 隐藏欢迎界面，显示配置
     this.welcomeSection.style.display = 'none';
@@ -207,6 +242,19 @@ export class AnalysisView extends ItemView {
     this.bookInfoEl = this.configSection.createDiv({ cls: 'nc-book-info-section' });
     this.bookInfoEl.createSpan({ text: '加载中...', cls: 'nc-loading-hint' });
     
+    // 分析元数据状态显示区域
+    // Requirements: 1.1.1.1, 1.1.1.2, 1.1.1.3, 1.1.1.4
+    this.metadataStatusEl = this.configSection.createDiv({ cls: 'nc-metadata-status-section' });
+    
+    // 断点状态显示区域
+    // Requirements: 1.2.2.4
+    this.checkpointStatusEl = this.configSection.createDiv({ cls: 'nc-checkpoint-status-section' });
+    
+    // 增量分析模式选择区域
+    // Requirements: 1.1.2.1, 1.1.2.2, 1.1.2.3, 1.1.2.4, 1.1.2.5
+    this.incrementalModeSection = this.configSection.createDiv({ cls: 'nc-incremental-mode-section' });
+    this.incrementalModeSection.style.display = 'none';
+    
     // 模式选择
     this.createModeSelector();
     
@@ -214,7 +262,13 @@ export class AnalysisView extends ItemView {
     this.createTypeSelector();
     
     // 章节范围
+    this.chapterRangeSection = this.configSection.createDiv({ cls: 'nc-chapter-range-wrapper' });
     this.createChapterRangeSelector();
+    
+    // 分批建议区域
+    // Requirements: 1.3.1.1, 1.3.1.2
+    this.batchSuggestionEl = this.configSection.createDiv({ cls: 'nc-batch-suggestion-section' });
+    this.batchSuggestionEl.style.display = 'none';
     
     // Token 预估显示
     this.tokenEstimateEl = this.configSection.createDiv({ cls: 'nc-token-estimate' });
@@ -246,6 +300,9 @@ export class AnalysisView extends ItemView {
     
     // 加载书籍信息
     await this.loadBookInfo();
+    
+    // 加载分析元数据
+    await this.loadAnalysisMetadata();
   }
 
   private getBookName(): string {
@@ -326,7 +383,7 @@ export class AnalysisView extends ItemView {
   }
 
   private createChapterRangeSelector(): void {
-    const container = this.configSection.createDiv({ cls: 'nc-range-selector' });
+    const container = this.chapterRangeSection.createDiv({ cls: 'nc-range-selector' });
     
     const setting = new Setting(container)
       .setName('分析范围')
@@ -448,6 +505,531 @@ export class AnalysisView extends ItemView {
     } catch (error) {
       console.error('加载书籍信息失败:', error);
       this.bookInfoEl.textContent = '加载书籍信息失败';
+    }
+  }
+
+  /**
+   * 加载分析元数据并显示状态
+   * Requirements: 1.1.1.1, 1.1.1.2, 1.1.1.3, 1.1.1.4
+   */
+  private async loadAnalysisMetadata(): Promise<void> {
+    if (!this.metadataStatusEl || !this.currentBook) return;
+    
+    this.metadataStatusEl.empty();
+    
+    try {
+      const notesPath = this.settings.notesPath || '拆书笔记';
+      const bookTitle = this.currentBook.metadata.title;
+      
+      // Requirements: 1.1.1.1 - 检查是否存在分析元数据
+      this.currentMetadata = await this.metadataService.getMetadata(
+        this.epubPath,
+        bookTitle,
+        notesPath
+      );
+      
+      // Requirements: 1.2.2.4 - 检查是否存在断点
+      await this.loadCheckpointStatus();
+      
+      this.metadataStatusEl.addClass('nc-metadata-status-loaded');
+      
+      // 创建状态显示区域
+      const statusContainer = this.metadataStatusEl.createDiv({ cls: 'nc-metadata-status-container' });
+      
+      const header = statusContainer.createDiv({ cls: 'nc-metadata-header' });
+      header.createSpan({ text: '📋 分析状态', cls: 'nc-metadata-title' });
+      
+      const content = statusContainer.createDiv({ cls: 'nc-metadata-content' });
+      
+      if (this.currentMetadata && this.currentMetadata.ranges.length > 0) {
+        // Requirements: 1.1.1.2, 1.1.1.3 - 显示已分析章节范围和日期
+        const statusText = this.metadataService.formatAnalysisStatus(this.currentMetadata);
+        
+        // 分割多行状态显示
+        const statusLines = statusText.split('\n');
+        for (const line of statusLines) {
+          const rangeItem = content.createDiv({ cls: 'nc-metadata-range-item' });
+          rangeItem.createSpan({ text: '✅ ', cls: 'nc-metadata-icon' });
+          rangeItem.createSpan({ text: line, cls: 'nc-metadata-range-text' });
+        }
+        
+        // 显示最后更新时间
+        const lastUpdated = new Date(this.currentMetadata.lastUpdated);
+        const lastUpdatedStr = `${lastUpdated.getFullYear()}-${String(lastUpdated.getMonth() + 1).padStart(2, '0')}-${String(lastUpdated.getDate()).padStart(2, '0')} ${String(lastUpdated.getHours()).padStart(2, '0')}:${String(lastUpdated.getMinutes()).padStart(2, '0')}`;
+        
+        const updateInfo = content.createDiv({ cls: 'nc-metadata-update-info' });
+        updateInfo.createSpan({ text: `最后更新: ${lastUpdatedStr}`, cls: 'nc-metadata-update-text' });
+        
+        // Requirements: 1.1.2.1 - 当存在元数据时显示三个选项
+        this.createIncrementalModeSelector();
+      } else {
+        // Requirements: 1.1.1.4 - 显示"尚未分析"状态
+        const noAnalysis = content.createDiv({ cls: 'nc-metadata-no-analysis' });
+        noAnalysis.createSpan({ text: '📭 ', cls: 'nc-metadata-icon' });
+        noAnalysis.createSpan({ text: '尚未分析', cls: 'nc-metadata-no-analysis-text' });
+        
+        // Requirements: 1.1.2.5 - 无元数据时隐藏增量模式选择
+        this.incrementalModeSection.style.display = 'none';
+        this.selectedIncrementalMode = null;
+      }
+    } catch (error) {
+      console.error('加载分析元数据失败:', error);
+      // 出错时显示"尚未分析"
+      const content = this.metadataStatusEl.createDiv({ cls: 'nc-metadata-content' });
+      const noAnalysis = content.createDiv({ cls: 'nc-metadata-no-analysis' });
+      noAnalysis.createSpan({ text: '📭 ', cls: 'nc-metadata-icon' });
+      noAnalysis.createSpan({ text: '尚未分析', cls: 'nc-metadata-no-analysis-text' });
+      
+      // 无元数据时隐藏增量模式选择
+      this.incrementalModeSection.style.display = 'none';
+      this.selectedIncrementalMode = null;
+    }
+  }
+
+  /**
+   * 加载断点状态并显示
+   * Requirements: 1.2.2.4
+   */
+  private async loadCheckpointStatus(): Promise<void> {
+    if (!this.checkpointStatusEl || !this.currentBook) return;
+    
+    this.checkpointStatusEl.empty();
+    
+    try {
+      const notesPath = this.settings.notesPath || '拆书笔记';
+      const bookTitle = this.currentBook.metadata.title;
+      
+      // Requirements: 1.2.2.4 - 检查是否存在断点
+      this.currentCheckpoint = await this.checkpointService.getCheckpoint(bookTitle, notesPath);
+      
+      if (this.currentCheckpoint) {
+        this.checkpointStatusEl.addClass('nc-checkpoint-status-loaded');
+        
+        // 创建断点状态显示区域
+        const statusContainer = this.checkpointStatusEl.createDiv({ cls: 'nc-checkpoint-status-container' });
+        
+        const header = statusContainer.createDiv({ cls: 'nc-checkpoint-header' });
+        header.createSpan({ text: '⏸️ 发现未完成的分析', cls: 'nc-checkpoint-title' });
+        
+        const content = statusContainer.createDiv({ cls: 'nc-checkpoint-content' });
+        
+        // 显示断点详情
+        const checkpointInfo = this.checkpointService.formatCheckpointStatus(this.currentCheckpoint);
+        const infoItem = content.createDiv({ cls: 'nc-checkpoint-info-item' });
+        infoItem.createSpan({ text: '📍 ', cls: 'nc-checkpoint-icon' });
+        infoItem.createSpan({ text: checkpointInfo, cls: 'nc-checkpoint-info-text' });
+        
+        // 显示已完成的阶段
+        if (this.currentCheckpoint.completedStages.length > 0) {
+          const stagesItem = content.createDiv({ cls: 'nc-checkpoint-stages-item' });
+          stagesItem.createSpan({ text: '✅ 已完成: ', cls: 'nc-checkpoint-stages-label' });
+          stagesItem.createSpan({ 
+            text: this.currentCheckpoint.completedStages.join(', '), 
+            cls: 'nc-checkpoint-stages-text' 
+          });
+        }
+        
+        // 显示当前阶段（如果有）
+        if (this.currentCheckpoint.currentStage) {
+          const currentItem = content.createDiv({ cls: 'nc-checkpoint-current-item' });
+          currentItem.createSpan({ text: '🔄 中断于: ', cls: 'nc-checkpoint-current-label' });
+          currentItem.createSpan({ 
+            text: this.currentCheckpoint.currentStage, 
+            cls: 'nc-checkpoint-current-text' 
+          });
+        }
+        
+        // 创建"从断点继续"按钮
+        // Requirements: 1.2.2.4 - 显示"从断点继续"选项
+        const buttonContainer = content.createDiv({ cls: 'nc-checkpoint-button-container' });
+        
+        const resumeButton = buttonContainer.createEl('button', {
+          text: '▶️ 从断点继续',
+          cls: 'nc-btn nc-btn-checkpoint-resume'
+        });
+        resumeButton.addEventListener('click', () => this.resumeFromCheckpoint());
+        
+        const discardButton = buttonContainer.createEl('button', {
+          text: '🗑️ 放弃断点',
+          cls: 'nc-btn nc-btn-checkpoint-discard'
+        });
+        discardButton.addEventListener('click', () => this.discardCheckpoint());
+      } else {
+        // 没有断点，隐藏断点状态区域
+        this.checkpointStatusEl.style.display = 'none';
+      }
+    } catch (error) {
+      console.error('加载断点状态失败:', error);
+      this.checkpointStatusEl.style.display = 'none';
+    }
+  }
+
+  /**
+   * 从断点继续分析
+   * Requirements: 1.2.2.4, 1.2.2.5
+   */
+  private async resumeFromCheckpoint(): Promise<void> {
+    if (!this.currentCheckpoint || !this.currentBook) {
+      showWarning('没有可恢复的断点');
+      return;
+    }
+    
+    if (this.isAnalyzing) return;
+
+    if (!this.llmService.getDefaultProvider()) {
+      showWarning('请先在设置中配置 LLM 服务');
+      return;
+    }
+
+    this.isAnalyzing = true;
+    this.startButton.disabled = true;
+    this.startButton.textContent = '恢复中...';
+    this.controlButtons.style.display = 'flex';
+    this.pauseButton.textContent = '⏸️ 暂停';
+    
+    // 显示进度和结果区域
+    this.progressSection.style.display = 'block';
+    this.resultsSection.style.display = 'block';
+    this.createProgressSection();
+    this.createResultsSection();
+    
+    this.analysisController = new AnalysisController();
+    this.stageResults = [];
+
+    try {
+      this.updateProgress({ stage: '恢复中', progress: 0, message: '正在从断点恢复分析...' });
+      this.addStageResult('恢复断点', 'running', '正在恢复...');
+      
+      const file = this.app.vault.getAbstractFileByPath(this.epubPath);
+      if (!(file instanceof TFile)) throw new Error(`文件不存在: ${this.epubPath}`);
+      
+      const fileData = await this.app.vault.readBinary(file);
+      const fullBook = await ParserFactory.parseDocument(fileData, file.name);
+
+      // 使用断点中保存的章节范围
+      const startIdx = Math.max(0, this.currentCheckpoint.chapterRange.start - 1);
+      const endIdx = Math.min(fullBook.chapters.length, this.currentCheckpoint.chapterRange.end);
+      const filteredChapters = fullBook.chapters.slice(startIdx, endIdx);
+      const filteredWordCount = filteredChapters.reduce((sum, ch) => sum + ch.wordCount, 0);
+      const book: ParsedBook = { ...fullBook, chapters: filteredChapters, totalWordCount: filteredWordCount };
+
+      this.addStageResult('恢复断点', 'completed', `已恢复: ${this.currentCheckpoint.completedStages.length} 个阶段已完成`);
+
+      // 使用断点中保存的配置
+      const config = this.currentCheckpoint.config;
+
+      const analysisService = new AnalysisService(this.llmService);
+      const outputPath = this.settings.notesPath || '拆书笔记';
+      
+      const createFile = async (path: string, content: string) => {
+        const folderPath = path.substring(0, path.lastIndexOf('/'));
+        if (folderPath) {
+          const folder = this.app.vault.getAbstractFileByPath(folderPath);
+          if (!folder) await this.app.vault.createFolder(folderPath);
+        }
+        const existingFile = this.app.vault.getAbstractFileByPath(path);
+        if (existingFile instanceof TFile) {
+          await this.app.vault.modify(existingFile, content);
+        } else {
+          await this.app.vault.create(path, content);
+        }
+      };
+      
+      const onNoteGenerated = (noteType: string, filePath: string) => {
+        this.addGeneratedFileInfo(noteType, filePath);
+        showInfo(`📝 已生成: ${noteType}`);
+      };
+      
+      // 从断点恢复分析
+      const result = await analysisService.resumeFromCheckpoint(
+        book, 
+        this.currentCheckpoint,
+        outputPath,
+        (progress) => this.updateProgress(progress),
+        (stage, status, message, result) => this.addStageResult(stage, status, message, result),
+        onNoteGenerated, 
+        createFile, 
+        outputPath, 
+        this.analysisController
+      );
+
+      // 分析完成后删除断点
+      await this.checkpointService.deleteCheckpoint(book.metadata.title, outputPath);
+      this.currentCheckpoint = null;
+      
+      // 隐藏断点状态区域
+      if (this.checkpointStatusEl) {
+        this.checkpointStatusEl.style.display = 'none';
+      }
+
+      this.updateProgress({ stage: '完成', progress: 100, message: '分析完成！' });
+      showSuccess(`《${book.metadata.title}》分析完成`);
+
+      if (this.onAnalysisComplete) {
+        this.onAnalysisComplete(result, book);
+      }
+
+      this.startButton.textContent = '分析完成 ✓';
+      this.controlButtons.style.display = 'none';
+
+    } catch (error) {
+      if (error instanceof AnalysisStoppedError) {
+        this.progressStage.textContent = '已终止';
+        this.addStageResult('⏹️ 已终止', 'error', '分析已被用户终止');
+        showWarning('分析已终止');
+      } else {
+        const errorMessage = error instanceof Error ? error.message : '未知错误';
+        handleError(error, '恢复分析');
+        this.progressStage.textContent = '恢复失败';
+        this.addStageResult('错误', 'error', errorMessage);
+      }
+    } finally {
+      this.isAnalyzing = false;
+      this.startButton.disabled = false;
+      this.analysisController = null;
+      this.controlButtons.style.display = 'none';
+      if (!this.startButton.textContent?.includes('完成')) {
+        this.startButton.textContent = '重新分析';
+      }
+    }
+  }
+
+  /**
+   * 放弃断点
+   */
+  private async discardCheckpoint(): Promise<void> {
+    if (!this.currentCheckpoint || !this.currentBook) return;
+    
+    const notesPath = this.settings.notesPath || '拆书笔记';
+    const bookTitle = this.currentBook.metadata.title;
+    
+    try {
+      await this.checkpointService.deleteCheckpoint(bookTitle, notesPath);
+      this.currentCheckpoint = null;
+      
+      // 隐藏断点状态区域
+      if (this.checkpointStatusEl) {
+        this.checkpointStatusEl.empty();
+        this.checkpointStatusEl.style.display = 'none';
+      }
+      
+      showInfo('已放弃断点');
+    } catch (error) {
+      console.error('放弃断点失败:', error);
+      handleError(error, '放弃断点');
+    }
+  }
+
+  /**
+   * 创建增量分析模式选择器
+   * Requirements: 1.1.2.1, 1.1.2.2, 1.1.2.3, 1.1.2.4, 1.1.2.5
+   */
+  private createIncrementalModeSelector(): void {
+    if (!this.incrementalModeSection || !this.currentMetadata) return;
+    
+    this.incrementalModeSection.empty();
+    this.incrementalModeSection.style.display = 'block';
+    
+    const container = this.incrementalModeSection.createDiv({ cls: 'nc-incremental-mode-container' });
+    
+    const header = container.createDiv({ cls: 'nc-incremental-header' });
+    header.createSpan({ text: '🔄 分析方式', cls: 'nc-incremental-title' });
+    
+    const options = container.createDiv({ cls: 'nc-incremental-options' });
+    
+    // 计算下一个起始章节
+    const nextStartChapter = this.metadataService.getNextStartChapter(this.currentMetadata);
+    const hasMoreChapters = nextStartChapter <= this.totalChapters;
+    
+    // 继续分析选项
+    // Requirements: 1.1.2.2 - 自动设置起始章节为上次分析结束章节 + 1
+    const continueOption = this.createIncrementalOption(
+      options,
+      'continue',
+      '▶️ 继续分析',
+      hasMoreChapters 
+        ? `从第 ${nextStartChapter} 章继续分析到结尾`
+        : '已分析完所有章节',
+      !hasMoreChapters
+    );
+    
+    // 追加分析选项
+    // Requirements: 1.1.2.3 - 允许用户指定自定义范围
+    const appendOption = this.createIncrementalOption(
+      options,
+      'append',
+      '➕ 追加分析',
+      '选择特定章节范围进行追加分析',
+      false
+    );
+    
+    // 重新分析选项
+    // Requirements: 1.1.2.4 - 警告用户现有笔记将被覆盖
+    const restartOption = this.createIncrementalOption(
+      options,
+      'restart',
+      '🔄 重新分析',
+      '⚠️ 将覆盖现有分析结果',
+      false
+    );
+    
+    // 默认选择继续分析（如果有更多章节）
+    if (hasMoreChapters) {
+      this.selectIncrementalMode('continue');
+      continueOption.addClass('nc-incremental-option-active');
+    }
+  }
+
+  /**
+   * 创建单个增量分析选项
+   */
+  private createIncrementalOption(
+    container: HTMLElement,
+    mode: IncrementalMode,
+    label: string,
+    description: string,
+    disabled: boolean
+  ): HTMLElement {
+    const option = container.createDiv({ 
+      cls: `nc-incremental-option ${disabled ? 'nc-incremental-option-disabled' : ''}` 
+    });
+    
+    const labelEl = option.createDiv({ cls: 'nc-incremental-option-label' });
+    labelEl.textContent = label;
+    
+    const descEl = option.createDiv({ cls: 'nc-incremental-option-desc' });
+    descEl.textContent = description;
+    
+    if (!disabled) {
+      option.addEventListener('click', () => {
+        // 移除其他选项的激活状态
+        const allOptions = container.querySelectorAll('.nc-incremental-option');
+        allOptions.forEach(opt => opt.removeClass('nc-incremental-option-active'));
+        
+        // 激活当前选项
+        option.addClass('nc-incremental-option-active');
+        
+        // 更新选中的模式
+        this.selectIncrementalMode(mode);
+      });
+    }
+    
+    return option;
+  }
+
+  /**
+   * 选择增量分析模式并更新 UI
+   * Requirements: 1.1.2.2, 1.1.2.3, 1.1.2.4
+   */
+  private selectIncrementalMode(mode: IncrementalMode): void {
+    this.selectedIncrementalMode = mode;
+    
+    switch (mode) {
+      case 'continue':
+        // Requirements: 1.1.2.2 - 自动设置起始章节
+        if (this.currentMetadata) {
+          const nextStart = this.metadataService.getNextStartChapter(this.currentMetadata);
+          this.chapterStart = nextStart;
+          this.chapterEnd = this.totalChapters;
+          this.analyzeAllChapters = false;
+          
+          // 更新章节范围显示
+          this.updateChapterRangeForContinue(nextStart, this.totalChapters);
+        }
+        // 隐藏章节范围选择器（继续模式自动设置范围）
+        this.chapterRangeSection.style.display = 'none';
+        break;
+        
+      case 'append':
+        // Requirements: 1.1.2.3 - 显示自定义范围选择
+        this.analyzeAllChapters = false;
+        this.chapterRangeSection.style.display = 'block';
+        // 重置为默认范围
+        this.chapterStart = 1;
+        this.chapterEnd = Math.min(50, this.totalChapters);
+        this.updateChapterRangeInputs();
+        break;
+        
+      case 'restart':
+        // Requirements: 1.1.2.4 - 显示完整范围选择
+        this.chapterRangeSection.style.display = 'block';
+        // 显示警告
+        this.showRestartWarning();
+        break;
+    }
+    
+    // 更新 Token 预估
+    this.updateTokenEstimate();
+    
+    // 更新开始按钮文本
+    this.updateStartButtonText();
+  }
+
+  /**
+   * 更新继续模式的章节范围显示
+   */
+  private updateChapterRangeForContinue(start: number, end: number): void {
+    // 在增量模式区域显示将要分析的范围
+    const existingInfo = this.incrementalModeSection.querySelector('.nc-continue-range-info');
+    if (existingInfo) {
+      existingInfo.remove();
+    }
+    
+    const rangeInfo = this.incrementalModeSection.createDiv({ cls: 'nc-continue-range-info' });
+    rangeInfo.createSpan({ text: `📖 将分析: 第 ${start} - ${end} 章 (共 ${end - start + 1} 章)`, cls: 'nc-continue-range-text' });
+  }
+
+  /**
+   * 更新章节范围输入框的值
+   */
+  private updateChapterRangeInputs(): void {
+    const startInput = this.chapterRangeSection.querySelector('input[type="number"]:first-of-type') as HTMLInputElement;
+    const endInput = (this as any)._endInput as HTMLInputElement;
+    
+    if (startInput) {
+      startInput.value = String(this.chapterStart);
+    }
+    if (endInput) {
+      endInput.value = String(this.chapterEnd);
+    }
+  }
+
+  /**
+   * 显示重新分析警告
+   * Requirements: 1.1.2.4
+   */
+  private showRestartWarning(): void {
+    const existingWarning = this.incrementalModeSection.querySelector('.nc-restart-warning');
+    if (existingWarning) {
+      return; // 已经显示警告
+    }
+    
+    const warning = this.incrementalModeSection.createDiv({ cls: 'nc-restart-warning' });
+    warning.createSpan({ text: '⚠️ ', cls: 'nc-warning-icon' });
+    warning.createSpan({ 
+      text: '重新分析将覆盖现有的分析笔记，此操作不可撤销。', 
+      cls: 'nc-warning-text' 
+    });
+  }
+
+  /**
+   * 更新开始按钮文本
+   */
+  private updateStartButtonText(): void {
+    if (!this.startButton) return;
+    
+    switch (this.selectedIncrementalMode) {
+      case 'continue':
+        this.startButton.textContent = '继续分析';
+        break;
+      case 'append':
+        this.startButton.textContent = '追加分析';
+        break;
+      case 'restart':
+        this.startButton.textContent = '重新分析';
+        break;
+      default:
+        this.startButton.textContent = '开始分析';
     }
   }
 
@@ -762,6 +1344,10 @@ export class AnalysisView extends ItemView {
       details.style.display = isHidden ? 'block' : 'none';
       toggleBtn.textContent = isHidden ? '收起详情 ▲' : '查看详情 ▼';
     });
+
+    // 更新分批建议
+    // Requirements: 1.3.1.1, 1.3.1.2
+    this.updateBatchSuggestion();
   }
 
   /**
@@ -797,5 +1383,137 @@ export class AnalysisView extends ItemView {
         <span class="nc-token-value">${TokenTracker.formatTokenCount(this.sessionTokenUsage.totalTokens)}</span>
       </div>
     `;
+  }
+
+  /**
+   * 计算分批建议
+   * Requirements: 1.3.1.1, 1.3.1.2
+   * 
+   * @param chapterCount 要分析的章节数
+   * @param totalWordCount 要分析的总字数
+   * @returns 分批建议
+   */
+  public calculateBatchSuggestion(chapterCount: number, totalWordCount: number): BatchSuggestion {
+    // Requirements: 1.3.1.1 - 当章节数 > 50 时显示建议
+    if (chapterCount <= BATCH_SUGGESTION_THRESHOLD) {
+      return {
+        shouldBatch: false,
+        recommendedBatchSize: chapterCount,
+        totalBatches: 1,
+        reason: '章节数量适中，无需分批'
+      };
+    }
+
+    // Requirements: 1.3.1.2 - 根据字数计算推荐批次大小
+    // 计算平均每章字数
+    const avgWordsPerChapter = totalWordCount / chapterCount;
+    
+    // 基于字数的批次大小计算策略：
+    // - 平均每章 < 3000 字：每批 50 章（短章节）
+    // - 平均每章 3000-6000 字：每批 30 章（中等章节）
+    // - 平均每章 6000-10000 字：每批 20 章（长章节）
+    // - 平均每章 > 10000 字：每批 10 章（超长章节）
+    let recommendedBatchSize: number;
+    let reason: string;
+
+    if (avgWordsPerChapter < 3000) {
+      recommendedBatchSize = 50;
+      reason = `平均每章 ${Math.round(avgWordsPerChapter)} 字（短章节），建议每批 50 章`;
+    } else if (avgWordsPerChapter < 6000) {
+      recommendedBatchSize = 30;
+      reason = `平均每章 ${Math.round(avgWordsPerChapter)} 字（中等章节），建议每批 30 章`;
+    } else if (avgWordsPerChapter < 10000) {
+      recommendedBatchSize = 20;
+      reason = `平均每章 ${Math.round(avgWordsPerChapter)} 字（长章节），建议每批 20 章`;
+    } else {
+      recommendedBatchSize = 10;
+      reason = `平均每章 ${Math.round(avgWordsPerChapter)} 字（超长章节），建议每批 10 章`;
+    }
+
+    // 计算总批次数
+    const totalBatches = Math.ceil(chapterCount / recommendedBatchSize);
+
+    return {
+      shouldBatch: true,
+      recommendedBatchSize,
+      totalBatches,
+      reason
+    };
+  }
+
+  /**
+   * 更新分批建议显示
+   * Requirements: 1.3.1.1, 1.3.1.2
+   */
+  private updateBatchSuggestion(): void {
+    if (!this.batchSuggestionEl || !this.currentBook) return;
+
+    this.batchSuggestionEl.empty();
+
+    // 计算要分析的章节数和字数
+    let chapterCount: number;
+    let totalWordCount: number;
+
+    if (this.analyzeAllChapters) {
+      chapterCount = this.currentBook.chapters.length;
+      totalWordCount = this.currentBook.totalWordCount;
+    } else {
+      const startIdx = Math.max(0, this.chapterStart - 1);
+      const endIdx = Math.min(this.currentBook.chapters.length, this.chapterEnd);
+      const selectedChapters = this.currentBook.chapters.slice(startIdx, endIdx);
+      chapterCount = selectedChapters.length;
+      totalWordCount = selectedChapters.reduce((sum, ch) => sum + ch.wordCount, 0);
+    }
+
+    // 计算分批建议
+    const suggestion = this.calculateBatchSuggestion(chapterCount, totalWordCount);
+
+    // Requirements: 1.3.1.1 - 当章节数 > 50 时显示建议
+    if (!suggestion.shouldBatch) {
+      this.batchSuggestionEl.style.display = 'none';
+      return;
+    }
+
+    this.batchSuggestionEl.style.display = 'block';
+    this.batchSuggestionEl.addClass('nc-batch-suggestion-loaded');
+
+    // 创建建议容器
+    const container = this.batchSuggestionEl.createDiv({ cls: 'nc-batch-suggestion-container' });
+
+    // 标题
+    const header = container.createDiv({ cls: 'nc-batch-suggestion-header' });
+    header.createSpan({ text: '📦 分批分析建议', cls: 'nc-batch-suggestion-title' });
+
+    // 内容
+    const content = container.createDiv({ cls: 'nc-batch-suggestion-content' });
+
+    // 警告信息
+    const warning = content.createDiv({ cls: 'nc-batch-suggestion-warning' });
+    warning.createSpan({ text: '⚠️ ', cls: 'nc-batch-warning-icon' });
+    warning.createSpan({ 
+      text: `您选择了 ${chapterCount} 章进行分析，超过建议的 ${BATCH_SUGGESTION_THRESHOLD} 章阈值。`,
+      cls: 'nc-batch-warning-text'
+    });
+
+    // 建议详情
+    const details = content.createDiv({ cls: 'nc-batch-suggestion-details' });
+    
+    const reasonItem = details.createDiv({ cls: 'nc-batch-detail-item' });
+    reasonItem.createSpan({ text: '💡 ', cls: 'nc-batch-detail-icon' });
+    reasonItem.createSpan({ text: suggestion.reason, cls: 'nc-batch-detail-text' });
+
+    const batchInfo = details.createDiv({ cls: 'nc-batch-detail-item' });
+    batchInfo.createSpan({ text: '📊 ', cls: 'nc-batch-detail-icon' });
+    batchInfo.createSpan({ 
+      text: `推荐分 ${suggestion.totalBatches} 批完成，每批约 ${suggestion.recommendedBatchSize} 章`,
+      cls: 'nc-batch-detail-text'
+    });
+
+    // 提示信息
+    const tip = content.createDiv({ cls: 'nc-batch-suggestion-tip' });
+    tip.createSpan({ 
+      text: '分批分析可以避免超时问题，每批完成后会自动保存结果。',
+      cls: 'nc-batch-tip-text'
+    });
   }
 }

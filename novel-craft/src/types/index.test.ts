@@ -5,7 +5,8 @@ import {
   NovelCraftSettings,
   LLMProvider,
   AnalysisMode,
-  NovelType
+  NovelType,
+  MergeMode
 } from './index';
 
 describe('NovelCraft Types', () => {
@@ -69,7 +70,12 @@ describe('NovelCraft Types', () => {
                 completionTokens: fc.nat(),
                 totalTokens: fc.nat()
               })
-            }))
+            })),
+            incrementalAnalysis: fc.record({
+              defaultBatchSize: fc.integer({ min: 1, max: 100 }),
+              autoBatchThreshold: fc.integer({ min: 1, max: 200 }),
+              mergeMode: fc.constantFrom<MergeMode>('append', 'merge')
+            })
           }),
           (settings: NovelCraftSettings) => {
             // Verify all required fields exist

@@ -152,6 +152,109 @@ export interface AnalysisProgress {
   message: string;
 }
 
+// ============ Incremental Analysis Types ============
+
+/**
+ * 增量分析模式
+ * - continue: 继续分析 - 从上次分析结束的章节继续
+ * - append: 追加分析 - 用户自定义范围追加分析
+ * - restart: 重新分析 - 覆盖已有分析结果
+ */
+export type IncrementalMode = 'continue' | 'append' | 'restart';
+
+export interface AnalysisRange {
+  id: string;
+  startChapter: number;
+  endChapter: number;
+  mode: AnalysisMode;
+  analyzedAt: string;
+  stages: string[];
+}
+
+export interface AnalysisMetadata {
+  bookTitle: string;
+  bookPath: string;
+  ranges: AnalysisRange[];
+  lastUpdated: string;
+  version: string;
+}
+
+// ============ Batch Analysis Types ============
+
+/**
+ * 批次信息
+ * Requirements: 1.3.1.3, 1.3.1.4
+ */
+export interface BatchInfo {
+  /** 批次索引 (0-based) */
+  batchIndex: number;
+  /** 总批次数 */
+  totalBatches: number;
+  /** 批次起始章节 (1-based) */
+  startChapter: number;
+  /** 批次结束章节 (1-based) */
+  endChapter: number;
+  /** 批次状态 */
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'skipped';
+  /** 批次结果 */
+  result?: AnalysisResult;
+  /** 错误信息 */
+  error?: string;
+}
+
+/**
+ * 批次失败处理选项
+ * Requirements: 1.3.2.3
+ */
+export type BatchFailureAction = 'retry' | 'skip' | 'abort';
+
+/**
+ * 合并模式
+ * - append: 追加模式 - 新内容追加到已有内容后
+ * - merge: 合并模式 - 智能合并新旧内容
+ * Requirements: 1.3.4.3
+ */
+export type MergeMode = 'append' | 'merge';
+
+/**
+ * 增量分析设置
+ * Requirements: 1.3.4.1, 1.3.4.2, 1.3.4.3, 1.3.4.4
+ */
+export interface IncrementalAnalysisSettings {
+  /** 默认批次大小 (章节数) */
+  defaultBatchSize: number;
+  /** 自动分批阈值 (章节数超过此值时建议分批) */
+  autoBatchThreshold: number;
+  /** 合并模式 */
+  mergeMode: MergeMode;
+}
+
+/**
+ * 默认增量分析设置
+ */
+export const DEFAULT_INCREMENTAL_SETTINGS: IncrementalAnalysisSettings = {
+  defaultBatchSize: 30,
+  autoBatchThreshold: 50,
+  mergeMode: 'merge'
+};
+
+/**
+ * 批次完成回调类型
+ */
+export type BatchCompleteCallback = (
+  batchInfo: BatchInfo,
+  result: AnalysisResult
+) => Promise<void>;
+
+/**
+ * 批次失败回调类型
+ * 返回用户选择的处理方式
+ */
+export type BatchFailureCallback = (
+  batchInfo: BatchInfo,
+  error: Error
+) => Promise<BatchFailureAction>;
+
 // ============ Conversation Types ============
 
 export interface Conversation {
@@ -216,6 +319,8 @@ export interface NovelCraftSettings {
   customTypePrompts: Record<string, string>;
   // Token 使用记录
   tokenUsageRecords: TokenUsageRecord[];
+  // 增量分析设置
+  incrementalAnalysis: IncrementalAnalysisSettings;
 }
 
 export const DEFAULT_SETTINGS: NovelCraftSettings = {
@@ -228,7 +333,8 @@ export const DEFAULT_SETTINGS: NovelCraftSettings = {
   notesPath: 'NovelCraft/notes',
   customPrompts: {},
   customTypePrompts: {},
-  tokenUsageRecords: []
+  tokenUsageRecords: [],
+  incrementalAnalysis: DEFAULT_INCREMENTAL_SETTINGS
 };
 
 export const DEFAULT_PROVIDERS: Partial<LLMProvider>[] = [

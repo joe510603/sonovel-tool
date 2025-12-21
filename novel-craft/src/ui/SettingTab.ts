@@ -1,11 +1,12 @@
-import { App, PluginSettingTab, Setting, Notice, TextAreaComponent } from 'obsidian';
+import { App, PluginSettingTab, Setting, Notice } from 'obsidian';
 import type NovelCraftPlugin from '../../main';
 import { 
   LLMProvider, 
   DEFAULT_PROVIDERS, 
   AnalysisMode, 
   NovelType,
-  TokenUsageRecord
+  MergeMode,
+  DEFAULT_INCREMENTAL_SETTINGS
 } from '../types';
 import { 
   getAllNovelTypes, 
@@ -40,6 +41,9 @@ export class NovelCraftSettingTab extends PluginSettingTab {
 
     // Analysis Default Settings
     this.renderAnalysisSettings(containerEl);
+
+    // Incremental Analysis Settings
+    this.renderIncrementalAnalysisSettings(containerEl);
 
     // Token Usage Statistics
     this.renderTokenStats(containerEl);
@@ -338,6 +342,80 @@ export class NovelCraftSettingTab extends PluginSettingTab {
 
     // 提示词自定义
     this.renderPromptSettings(containerEl);
+  }
+
+  /**
+   * 渲染增量分析设置
+   * Requirements: 1.3.4.1, 1.3.4.2, 1.3.4.3
+   */
+  private renderIncrementalAnalysisSettings(containerEl: HTMLElement): void {
+    containerEl.createEl('h2', { text: '分析设置' });
+
+    containerEl.createEl('p', { 
+      text: '配置增量分析和分批处理的相关参数',
+      cls: 'setting-item-description'
+    });
+
+    // 确保 incrementalAnalysis 设置存在
+    if (!this.plugin.settings.incrementalAnalysis) {
+      this.plugin.settings.incrementalAnalysis = { ...DEFAULT_INCREMENTAL_SETTINGS };
+    }
+
+    // 默认批次大小
+    new Setting(containerEl)
+      .setName('默认批次大小')
+      .setDesc('分批分析时每批处理的章节数量')
+      .addText(text => text
+        .setPlaceholder('30')
+        .setValue(String(this.plugin.settings.incrementalAnalysis.defaultBatchSize))
+        .onChange(async (value) => {
+          const num = parseInt(value, 10);
+          if (!isNaN(num) && num > 0) {
+            this.plugin.settings.incrementalAnalysis.defaultBatchSize = num;
+            await this.plugin.saveSettings();
+          }
+        }));
+
+    // 自动分批阈值
+    new Setting(containerEl)
+      .setName('自动分批阈值')
+      .setDesc('当选择的章节数超过此值时，系统将建议使用分批分析')
+      .addText(text => text
+        .setPlaceholder('50')
+        .setValue(String(this.plugin.settings.incrementalAnalysis.autoBatchThreshold))
+        .onChange(async (value) => {
+          const num = parseInt(value, 10);
+          if (!isNaN(num) && num > 0) {
+            this.plugin.settings.incrementalAnalysis.autoBatchThreshold = num;
+            await this.plugin.saveSettings();
+          }
+        }));
+
+    // 合并模式
+    new Setting(containerEl)
+      .setName('合并模式')
+      .setDesc('增量分析时新旧结果的合并方式')
+      .addDropdown(dropdown => dropdown
+        .addOption('append', '追加模式 - 新内容追加到已有内容后')
+        .addOption('merge', '合并模式 - 智能合并新旧内容')
+        .setValue(this.plugin.settings.incrementalAnalysis.mergeMode)
+        .onChange(async (value) => {
+          this.plugin.settings.incrementalAnalysis.mergeMode = value as MergeMode;
+          await this.plugin.saveSettings();
+        }));
+
+    // 重置为默认按钮
+    new Setting(containerEl)
+      .setName('重置分析设置')
+      .setDesc('将所有分析设置恢复为默认值')
+      .addButton(button => button
+        .setButtonText('重置为默认')
+        .onClick(async () => {
+          this.plugin.settings.incrementalAnalysis = { ...DEFAULT_INCREMENTAL_SETTINGS };
+          await this.plugin.saveSettings();
+          this.display();
+          new Notice('分析设置已重置为默认值');
+        }));
   }
 
   private renderPromptSettings(containerEl: HTMLElement): void {

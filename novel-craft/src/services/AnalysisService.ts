@@ -19,8 +19,16 @@ import {
   ChatMessage,
   Chapter,
   AnalysisMode,
-  NovelType
+  NovelType,
+  IncrementalMode,
+  AnalysisRange,
+  BatchInfo,
+  BatchFailureAction,
+  BatchCompleteCallback,
+  BatchFailureCallback
 } from '../types';
+import { MetadataService } from './MetadataService';
+import { CheckpointService, AnalysisCheckpoint } from './CheckpointService';
 import { LLMService } from './LLMService';
 import {
   SYSTEM_PROMPT,
@@ -166,10 +174,19 @@ export class AnalysisService {
   private onStageResult: StageResultCallback | null = null;
   private onNoteGenerated: NoteGeneratedCallback | null = null;
   private controller: AnalysisController | null = null;
+  private checkpointService: CheckpointService | null = null;
 
   constructor(llmService: LLMService, chunkConfig?: Partial<ChunkConfig>) {
     this.llmService = llmService;
     this.chunkConfig = { ...DEFAULT_CHUNK_CONFIG, ...chunkConfig };
+  }
+
+  /**
+   * 设置断点服务
+   * @param checkpointService 断点服务实例
+   */
+  setCheckpointService(checkpointService: CheckpointService): void {
+    this.checkpointService = checkpointService;
   }
 
   /**
@@ -276,6 +293,8 @@ export class AnalysisService {
    * @param createFile 文件创建函数（可选，用于增量生成笔记）
    * @param outputPath 输出路径（可选）
    * @param controller 分析控制器（可选，用于暂停/终止）
+   * @param notesPath 笔记根路径（可选，用于断点保存）
+   * @param chapterRange 章节范围（可选，用于断点保存）
    * @returns 分析结果
    */
   async analyzeWithResults(
@@ -286,7 +305,9 @@ export class AnalysisService {
     onNoteGenerated?: NoteGeneratedCallback,
     createFile?: (path: string, content: string) => Promise<void>,
     outputPath?: string,
-    controller?: AnalysisController
+    controller?: AnalysisController,
+    notesPath?: string,
+    chapterRange?: { start: number; end: number }
   ): Promise<AnalysisResult> {
     this.onProgress = onProgress;
     this.onStageResult = onStageResult;
@@ -313,6 +334,18 @@ export class AnalysisService {
     const bookFolderName = this.sanitizeFileName(book.metadata.title);
     const bookFolderPath = outputPath ? `${outputPath}/${bookFolderName}` : null;
     
+    // Requirements: 1.2.2.1 - 创建断点
+    if (this.checkpointService && notesPath) {
+      const range = chapterRange || { start: 1, end: book.chapters.length };
+      await this.checkpointService.createCheckpoint(
+        '', // bookPath
+        book.metadata.title,
+        config,
+        range,
+        notesPath
+      );
+    }
+    
     this.updateProgress(
       '准备中',
       0,
@@ -336,6 +369,11 @@ export class AnalysisService {
       );
       
       this.reportStageResult(stageName, 'running', `正在分析 ${stageName}...`);
+      
+      // Requirements: 1.2.2.2 - 设置当前阶段
+      if (this.checkpointService && notesPath) {
+        await this.checkpointService.setCurrentStage(book.metadata.title, stage, notesPath);
+      }
 
       try {
         const stageResult = await this.executeStageWithResult(stage, book, chunks, config, result);
@@ -347,6 +385,17 @@ export class AnalysisService {
         );
         
         this.reportStageResult(stageName, 'completed', `${stageName} 分析完成`, stageResult);
+        
+        // Requirements: 1.2.2.2 - 更新断点，保存阶段结果
+        if (this.checkpointService && notesPath) {
+          const partialResult = this.extractStageResult(stage, result);
+          await this.checkpointService.updateCheckpoint(
+            book.metadata.title,
+            stage,
+            partialResult,
+            notesPath
+          );
+        }
         
         // 增量生成笔记
         if (createFile && bookFolderPath) {
@@ -373,6 +422,11 @@ export class AnalysisService {
       completedStages++;
     }
 
+    // 分析完成，删除断点
+    if (this.checkpointService && notesPath) {
+      await this.checkpointService.deleteCheckpoint(book.metadata.title, notesPath);
+    }
+
     this.updateProgress('完成', 100, '分析完成！正在生成笔记...');
     this.onProgress = null;
     this.onStageResult = null;
@@ -380,6 +434,629 @@ export class AnalysisService {
     this.controller = null;
 
     return result;
+  }
+
+  /**
+   * 提取阶段结果用于断点保存
+   * @param stage 阶段名称
+   * @param result 当前分析结果
+   * @returns 该阶段的部分结果
+   */
+  private extractStageResult(stage: string, result: AnalysisResult): Partial<AnalysisResult> {
+    switch (stage) {
+      case 'synopsis':
+        return { synopsis: result.synopsis };
+      case 'characters':
+        return { characters: result.characters };
+      case 'techniques':
+        return { writingTechniques: result.writingTechniques };
+      case 'takeaways':
+        return { takeaways: result.takeaways };
+      case 'emotionCurve':
+        return { emotionCurve: result.emotionCurve };
+      case 'chapterStructure':
+        return { chapterStructure: result.chapterStructure };
+      case 'foreshadowing':
+        return { foreshadowing: result.foreshadowing };
+      case 'chapterDetail':
+        return { chapterDetails: result.chapterDetails };
+      case 'writingReview':
+        return { writingReview: result.writingReview };
+      default:
+        return {};
+    }
+  }
+
+  /**
+   * 从断点恢复分析
+   * Requirements: 1.2.2.5
+   * 
+   * 跳过已完成的阶段，从断点继续分析
+   * 
+   * @param book 已解析的书籍
+   * @param checkpoint 断点数据
+   * @param notesPath 笔记路径
+   * @param onProgress 进度回调
+   * @param onStageResult 阶段结果回调
+   * @param onNoteGenerated 笔记生成回调（可选）
+   * @param createFile 文件创建函数（可选）
+   * @param outputPath 输出路径（可选）
+   * @param controller 分析控制器（可选）
+   * @returns 分析结果
+   */
+  async resumeFromCheckpoint(
+    book: ParsedBook,
+    checkpoint: AnalysisCheckpoint,
+    notesPath: string,
+    onProgress: (progress: AnalysisProgress) => void,
+    onStageResult: StageResultCallback,
+    onNoteGenerated?: NoteGeneratedCallback,
+    createFile?: (path: string, content: string) => Promise<void>,
+    outputPath?: string,
+    controller?: AnalysisController
+  ): Promise<AnalysisResult> {
+    this.onProgress = onProgress;
+    this.onStageResult = onStageResult;
+    this.onNoteGenerated = onNoteGenerated || null;
+    this.controller = controller || null;
+
+    const config = checkpoint.config;
+    const chapterRange = checkpoint.chapterRange;
+    const completedStages = checkpoint.completedStages;
+    
+    // 根据章节范围过滤书籍
+    const filteredBook = this.filterBookByChapterRange(book, chapterRange);
+    
+    const stages = getAnalysisStages(config.mode);
+    const totalStages = stages.length;
+    
+    // 初始化结果，从断点恢复已有结果
+    const result: AnalysisResult = {
+      bookInfo: book.metadata,
+      synopsis: checkpoint.partialResults.synopsis || '',
+      characters: checkpoint.partialResults.characters || [],
+      writingTechniques: checkpoint.partialResults.writingTechniques || [],
+      takeaways: checkpoint.partialResults.takeaways || [],
+      emotionCurve: checkpoint.partialResults.emotionCurve,
+      chapterStructure: checkpoint.partialResults.chapterStructure,
+      foreshadowing: checkpoint.partialResults.foreshadowing,
+      chapterDetails: checkpoint.partialResults.chapterDetails,
+      writingReview: checkpoint.partialResults.writingReview
+    };
+
+    // 准备书籍内容（分块处理）
+    const chunks = this.splitBookIntoChunks(filteredBook);
+    
+    // 准备笔记输出路径
+    const bookFolderName = this.sanitizeFileName(book.metadata.title);
+    const bookFolderPath = outputPath ? `${outputPath}/${bookFolderName}` : null;
+    
+    // 计算已完成的阶段数
+    let completedCount = completedStages.length;
+    
+    this.updateProgress(
+      '从断点恢复',
+      (completedCount / totalStages) * 100,
+      `从断点恢复分析《${book.metadata.title}》，已完成 ${completedCount}/${totalStages} 个阶段`
+    );
+
+    // 执行各分析阶段
+    for (const stage of stages) {
+      // Requirements: 1.2.2.5 - 跳过已完成的阶段
+      if (completedStages.includes(stage)) {
+        const stageName = getStageName(stage);
+        this.reportStageResult(stageName, 'completed', `${stageName} 已完成（从断点恢复）`);
+        continue;
+      }
+      
+      // 检查暂停/终止状态
+      if (this.controller) {
+        await this.controller.checkpoint();
+      }
+      
+      const stageName = getStageName(stage);
+      const stageProgress = (completedCount / totalStages) * 100;
+      
+      this.updateProgress(
+        stageName,
+        stageProgress,
+        `[${completedCount + 1}/${totalStages}] 正在分析: ${stageName}...`
+      );
+      
+      this.reportStageResult(stageName, 'running', `正在分析 ${stageName}...`);
+      
+      // 设置当前阶段
+      if (this.checkpointService && notesPath) {
+        await this.checkpointService.setCurrentStage(book.metadata.title, stage, notesPath);
+      }
+
+      try {
+        const stageResult = await this.executeStageWithResult(stage, filteredBook, chunks, config, result);
+        
+        this.updateProgress(
+          stageName,
+          ((completedCount + 1) / totalStages) * 100,
+          `[${completedCount + 1}/${totalStages}] ${stageName} 完成 ✓`
+        );
+        
+        this.reportStageResult(stageName, 'completed', `${stageName} 分析完成`, stageResult);
+        
+        // 更新断点
+        if (this.checkpointService && notesPath) {
+          const partialResult = this.extractStageResult(stage, result);
+          await this.checkpointService.updateCheckpoint(
+            book.metadata.title,
+            stage,
+            partialResult,
+            notesPath
+          );
+        }
+        
+        // 增量生成笔记
+        if (createFile && bookFolderPath) {
+          await this.generateIncrementalNote(stage, filteredBook, result, config.mode, bookFolderPath, createFile);
+        }
+      } catch (error) {
+        // 如果是用户终止，直接抛出
+        if (error instanceof AnalysisStoppedError) {
+          throw error;
+        }
+        
+        console.error(`分析阶段 ${stage} 失败:`, error);
+        const errorMsg = error instanceof Error ? error.message : '未知错误';
+        
+        this.updateProgress(
+          stageName,
+          stageProgress,
+          `[${completedCount + 1}/${totalStages}] ${stageName} 失败，继续下一阶段...`
+        );
+        
+        this.reportStageResult(stageName, 'error', `${stageName} 失败: ${errorMsg}`);
+      }
+
+      completedCount++;
+    }
+
+    // 分析完成，删除断点
+    if (this.checkpointService && notesPath) {
+      await this.checkpointService.deleteCheckpoint(book.metadata.title, notesPath);
+    }
+
+    this.updateProgress('完成', 100, '分析完成！正在生成笔记...');
+    this.onProgress = null;
+    this.onStageResult = null;
+    this.onNoteGenerated = null;
+    this.controller = null;
+
+    return result;
+  }
+
+  /**
+   * 增量分析
+   * Requirements: 1.1.4.1
+   * 
+   * @param book 已解析的书籍
+   * @param config 分析配置
+   * @param incrementalMode 增量模式: continue/append/restart
+   * @param chapterRange 章节范围 (1-based, inclusive)
+   * @param metadataService 元数据服务
+   * @param notesPath 笔记路径
+   * @param onProgress 进度回调
+   * @param onStageResult 阶段结果回调
+   * @param onNoteGenerated 笔记生成回调（可选）
+   * @param createFile 文件创建函数（可选）
+   * @param outputPath 输出路径（可选）
+   * @param controller 分析控制器（可选）
+   * @returns 分析结果
+   */
+  async analyzeIncremental(
+    book: ParsedBook,
+    config: AnalysisConfig,
+    incrementalMode: IncrementalMode,
+    chapterRange: { start: number; end: number },
+    metadataService: MetadataService,
+    notesPath: string,
+    onProgress: (progress: AnalysisProgress) => void,
+    onStageResult: StageResultCallback,
+    onNoteGenerated?: NoteGeneratedCallback,
+    createFile?: (path: string, content: string) => Promise<void>,
+    outputPath?: string,
+    controller?: AnalysisController
+  ): Promise<AnalysisResult> {
+    // 根据增量模式过滤章节
+    // Requirements: 1.1.4.1 - 只处理新 Analysis_Range 中的章节
+    const filteredBook = this.filterBookByChapterRange(book, chapterRange);
+    
+    this.updateProgress(
+      '准备中',
+      0,
+      `增量分析模式: ${this.getIncrementalModeName(incrementalMode)}，分析章节 ${chapterRange.start}-${chapterRange.end}`
+    );
+
+    // 执行分析
+    const result = await this.analyzeWithResults(
+      filteredBook,
+      config,
+      onProgress,
+      onStageResult,
+      onNoteGenerated,
+      createFile,
+      outputPath,
+      controller,
+      notesPath,
+      chapterRange
+    );
+
+    // 分析完成后保存元数据
+    // Requirements: 1.1.3.1, 1.1.3.4
+    const stages = getAnalysisStages(config.mode);
+    const range: AnalysisRange = {
+      id: this.generateRangeId(),
+      startChapter: chapterRange.start,
+      endChapter: chapterRange.end,
+      mode: config.mode,
+      analyzedAt: new Date().toISOString(),
+      stages
+    };
+
+    // 根据模式决定是否清除旧元数据
+    if (incrementalMode === 'restart') {
+      // 重新分析模式：删除旧元数据后创建新的
+      await metadataService.deleteMetadata(book.metadata.title, notesPath);
+    }
+
+    // 添加新的分析范围
+    await metadataService.addRange(
+      '', // bookPath 在这里不需要，因为 addRange 会从现有元数据获取
+      book.metadata.title,
+      range,
+      notesPath
+    );
+
+    return result;
+  }
+
+  /**
+   * 分批分析
+   * Requirements: 1.3.1.3, 1.3.1.4, 1.3.2.1, 1.3.2.2, 1.3.2.3, 1.3.2.4
+   * 
+   * 自动将章节分割为批次进行分析，每批完成后立即保存结果。
+   * 支持批次失败时的重试或跳过选项。
+   * 
+   * @param book 已解析的书籍
+   * @param config 分析配置
+   * @param batchSize 每批章节数
+   * @param chapterRange 章节范围 (1-based, inclusive)
+   * @param metadataService 元数据服务
+   * @param notesPath 笔记路径
+   * @param onProgress 进度回调
+   * @param onStageResult 阶段结果回调
+   * @param onBatchComplete 批次完成回调
+   * @param onBatchFailure 批次失败回调（返回处理方式）
+   * @param onNoteGenerated 笔记生成回调（可选）
+   * @param createFile 文件创建函数（可选）
+   * @param outputPath 输出路径（可选）
+   * @param controller 分析控制器（可选）
+   * @returns 合并后的分析结果
+   */
+  async analyzeBatched(
+    book: ParsedBook,
+    config: AnalysisConfig,
+    batchSize: number,
+    chapterRange: { start: number; end: number },
+    metadataService: MetadataService,
+    notesPath: string,
+    onProgress: (progress: AnalysisProgress) => void,
+    onStageResult: StageResultCallback,
+    onBatchComplete: BatchCompleteCallback,
+    onBatchFailure: BatchFailureCallback,
+    onNoteGenerated?: NoteGeneratedCallback,
+    createFile?: (path: string, content: string) => Promise<void>,
+    outputPath?: string,
+    controller?: AnalysisController
+  ): Promise<AnalysisResult> {
+    this.onProgress = onProgress;
+    this.onStageResult = onStageResult;
+    this.onNoteGenerated = onNoteGenerated || null;
+    this.controller = controller || null;
+
+    // 计算批次
+    const batches = this.calculateBatches(chapterRange, batchSize);
+    const totalBatches = batches.length;
+
+    // 初始化批次信息
+    const batchInfos: BatchInfo[] = batches.map((batch, index) => ({
+      batchIndex: index,
+      totalBatches,
+      startChapter: batch.start,
+      endChapter: batch.end,
+      status: 'pending' as const
+    }));
+
+    // 存储所有批次的结果
+    const batchResults: AnalysisResult[] = [];
+    
+    // 初始化合并后的结果
+    let mergedResult: AnalysisResult = {
+      bookInfo: book.metadata,
+      synopsis: '',
+      characters: [],
+      writingTechniques: [],
+      takeaways: []
+    };
+
+    this.updateProgress(
+      '分批分析',
+      0,
+      `开始分批分析《${book.metadata.title}》，共 ${totalBatches} 批`
+    );
+
+    // 逐批分析
+    for (let i = 0; i < batchInfos.length; i++) {
+      const batchInfo = batchInfos[i];
+      
+      // 检查暂停/终止状态
+      if (this.controller) {
+        await this.controller.checkpoint();
+      }
+
+      // Requirements: 1.3.1.4 - 显示批次进度
+      this.updateProgress(
+        '分批分析',
+        (i / totalBatches) * 100,
+        `正在分析第 ${i + 1}/${totalBatches} 批 (章节 ${batchInfo.startChapter}-${batchInfo.endChapter})`
+      );
+
+      batchInfo.status = 'running';
+      this.reportStageResult(
+        `批次 ${i + 1}/${totalBatches}`,
+        'running',
+        `正在分析章节 ${batchInfo.startChapter}-${batchInfo.endChapter}...`
+      );
+
+      let retryCount = 0;
+      const maxRetries = 3;
+      let batchSuccess = false;
+
+      while (!batchSuccess && retryCount <= maxRetries) {
+        try {
+          // 过滤当前批次的章节
+          const batchBook = this.filterBookByChapterRange(book, {
+            start: batchInfo.startChapter,
+            end: batchInfo.endChapter
+          });
+
+          // 分析当前批次
+          const batchResult = await this.analyzeWithResults(
+            batchBook,
+            config,
+            (progress) => {
+              // 调整进度显示，包含批次信息
+              const batchProgress = (i + progress.progress / 100) / totalBatches * 100;
+              this.updateProgress(
+                progress.stage,
+                batchProgress,
+                `[批次 ${i + 1}/${totalBatches}] ${progress.message}`
+              );
+            },
+            (stage, status, message, result) => {
+              this.reportStageResult(
+                `[批次 ${i + 1}] ${stage}`,
+                status,
+                message,
+                result
+              );
+            },
+            onNoteGenerated,
+            undefined, // 不在这里创建文件，由 onBatchComplete 处理
+            undefined,
+            controller,
+            notesPath,
+            { start: batchInfo.startChapter, end: batchInfo.endChapter }
+          );
+
+          // 批次成功
+          batchInfo.status = 'completed';
+          batchInfo.result = batchResult;
+          batchResults.push(batchResult);
+
+          // Requirements: 1.3.2.1 - 每批完成后立即保存结果
+          await onBatchComplete(batchInfo, batchResult);
+
+          this.reportStageResult(
+            `批次 ${i + 1}/${totalBatches}`,
+            'completed',
+            `章节 ${batchInfo.startChapter}-${batchInfo.endChapter} 分析完成 ✓`
+          );
+
+          batchSuccess = true;
+
+        } catch (error) {
+          // 如果是用户终止，直接抛出
+          if (error instanceof AnalysisStoppedError) {
+            throw error;
+          }
+
+          retryCount++;
+          const errorMsg = error instanceof Error ? error.message : '未知错误';
+          
+          console.error(`批次 ${i + 1} 分析失败 (尝试 ${retryCount}/${maxRetries + 1}):`, error);
+
+          if (retryCount > maxRetries) {
+            // Requirements: 1.3.2.2 - 失败时保留已完成批次结果
+            // Requirements: 1.3.2.3 - 提供重试或跳过选项
+            batchInfo.status = 'failed';
+            batchInfo.error = errorMsg;
+
+            this.reportStageResult(
+              `批次 ${i + 1}/${totalBatches}`,
+              'error',
+              `章节 ${batchInfo.startChapter}-${batchInfo.endChapter} 分析失败: ${errorMsg}`
+            );
+
+            // 询问用户如何处理
+            const action = await onBatchFailure(batchInfo, error instanceof Error ? error : new Error(errorMsg));
+
+            if (action === 'retry') {
+              // 重置重试计数，再试一次
+              retryCount = 0;
+              continue;
+            } else if (action === 'skip') {
+              // 跳过当前批次
+              batchInfo.status = 'skipped';
+              this.reportStageResult(
+                `批次 ${i + 1}/${totalBatches}`,
+                'error',
+                `章节 ${batchInfo.startChapter}-${batchInfo.endChapter} 已跳过`
+              );
+              batchSuccess = true; // 标记为"成功"以继续下一批
+            } else {
+              // 中止整个分析
+              throw new Error(`分析在批次 ${i + 1} 中止: ${errorMsg}`);
+            }
+          } else {
+            // 自动重试
+            this.updateProgress(
+              '分批分析',
+              (i / totalBatches) * 100,
+              `批次 ${i + 1} 失败，正在重试 (${retryCount}/${maxRetries})...`
+            );
+            
+            // 等待一段时间后重试（指数退避）
+            await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, retryCount - 1)));
+          }
+        }
+      }
+    }
+
+    // Requirements: 1.3.2.4 - 所有批次完成后合并结果
+    this.updateProgress(
+      '合并结果',
+      95,
+      '正在合并所有批次的分析结果...'
+    );
+
+    // 使用 MergeService 合并所有批次结果
+    const { MergeService } = await import('./MergeService');
+    const mergeService = new MergeService();
+
+    for (const batchResult of batchResults) {
+      mergedResult = mergeService.mergeResults(mergedResult, batchResult, {
+        strategy: 'merge',
+        preferLatest: true
+      });
+    }
+
+    // 保存最终合并的元数据
+    const stages = getAnalysisStages(config.mode);
+    const range: AnalysisRange = {
+      id: this.generateRangeId(),
+      startChapter: chapterRange.start,
+      endChapter: chapterRange.end,
+      mode: config.mode,
+      analyzedAt: new Date().toISOString(),
+      stages
+    };
+
+    await metadataService.addRange(
+      '',
+      book.metadata.title,
+      range,
+      notesPath
+    );
+
+    // 生成最终合并的笔记
+    if (createFile && outputPath) {
+      const { NoteGenerator } = await import('./NoteGenerator');
+      const generator = new NoteGenerator({ mode: config.mode });
+      await generator.generateNotes(book, mergedResult, outputPath, createFile);
+    }
+
+    this.updateProgress('完成', 100, `分批分析完成！共完成 ${batchResults.length}/${totalBatches} 批`);
+
+    this.onProgress = null;
+    this.onStageResult = null;
+    this.onNoteGenerated = null;
+    this.controller = null;
+
+    return mergedResult;
+  }
+
+  /**
+   * 计算批次划分
+   * Requirements: 1.3.1.3 - 自动分割章节为批次
+   * 
+   * @param chapterRange 章节范围 (1-based, inclusive)
+   * @param batchSize 每批章节数
+   * @returns 批次数组，每个元素包含 start 和 end (1-based, inclusive)
+   */
+  private calculateBatches(
+    chapterRange: { start: number; end: number },
+    batchSize: number
+  ): Array<{ start: number; end: number }> {
+    const batches: Array<{ start: number; end: number }> = [];
+    let currentStart = chapterRange.start;
+
+    while (currentStart <= chapterRange.end) {
+      const currentEnd = Math.min(currentStart + batchSize - 1, chapterRange.end);
+      batches.push({ start: currentStart, end: currentEnd });
+      currentStart = currentEnd + 1;
+    }
+
+    return batches;
+  }
+
+  /**
+   * 根据章节范围过滤书籍
+   * Requirements: 1.1.4.1 - 只处理指定范围内的章节
+   * 
+   * @param book 原始书籍
+   * @param chapterRange 章节范围 (1-based, inclusive)
+   * @returns 过滤后的书籍
+   */
+  private filterBookByChapterRange(
+    book: ParsedBook,
+    chapterRange: { start: number; end: number }
+  ): ParsedBook {
+    // 转换为 0-based 索引
+    const startIndex = chapterRange.start - 1;
+    const endIndex = chapterRange.end - 1;
+
+    // 过滤章节
+    const filteredChapters = book.chapters.filter((_, index) => 
+      index >= startIndex && index <= endIndex
+    );
+
+    // 重新计算总字数
+    const totalWordCount = filteredChapters.reduce(
+      (sum, chapter) => sum + chapter.wordCount,
+      0
+    );
+
+    return {
+      metadata: book.metadata,
+      chapters: filteredChapters,
+      totalWordCount
+    };
+  }
+
+  /**
+   * 获取增量模式的中文名称
+   */
+  private getIncrementalModeName(mode: IncrementalMode): string {
+    const names: Record<IncrementalMode, string> = {
+      continue: '继续分析',
+      append: '追加分析',
+      restart: '重新分析'
+    };
+    return names[mode];
+  }
+
+  /**
+   * 生成唯一的范围 ID
+   */
+  private generateRangeId(): string {
+    return `range-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
   }
 
   /**

@@ -41,8 +41,9 @@ docker-compose up -d
 # macOS
 ./run-macos.sh
 
-# Windows
-sonovel.exe
+# Windows (需要先安装 Java 17+)
+# 下载 Java: https://adoptium.net/
+run-windows.bat
 ```
 
 ### 2. 安装 NovelCraft 插件
@@ -92,6 +93,14 @@ npm run build
 ```
 
 ## ⚙️ 配置说明
+
+### 系统要求
+
+| 平台 | 要求 |
+|------|------|
+| macOS | 内置 Java 运行时，无需额外安装 |
+| Windows | 需要安装 Java 17+，推荐 [Adoptium](https://adoptium.net/) |
+| Docker | 推荐方式，无需安装 Java |
 
 ### SoNovel 配置 (config.ini)
 ```ini

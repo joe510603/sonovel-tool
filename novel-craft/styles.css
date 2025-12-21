@@ -2841,3 +2841,398 @@
 .nc-format-header:not(:first-child) {
   margin-top: 8px;
 }
+
+
+/* ============ Metadata Status Styles ============ */
+
+.nc-metadata-status-section {
+  margin: 12px 0;
+  padding: 12px;
+  background-color: var(--background-secondary);
+  border-radius: 8px;
+  border: 1px solid var(--background-modifier-border);
+}
+
+.nc-metadata-status-loaded {
+  animation: fadeIn 0.3s ease;
+}
+
+.nc-metadata-status-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.nc-metadata-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.nc-metadata-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-normal);
+}
+
+.nc-metadata-content {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.nc-metadata-range-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  background-color: var(--background-modifier-success);
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.nc-metadata-icon {
+  flex-shrink: 0;
+}
+
+.nc-metadata-range-text {
+  color: var(--text-normal);
+}
+
+.nc-metadata-update-info {
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.nc-metadata-update-text {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.nc-metadata-no-analysis {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px;
+  background-color: var(--background-modifier-border);
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.nc-metadata-no-analysis-text {
+  color: var(--text-muted);
+}
+
+/* ============ Incremental Mode Selector Styles ============ */
+
+.nc-incremental-mode-section {
+  margin: 12px 0;
+}
+
+.nc-incremental-mode-container {
+  padding: 12px;
+  background-color: var(--background-secondary);
+  border-radius: 8px;
+  border: 1px solid var(--background-modifier-border);
+}
+
+.nc-incremental-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.nc-incremental-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-normal);
+}
+
+.nc-incremental-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.nc-incremental-option {
+  display: flex;
+  flex-direction: column;
+  padding: 10px 12px;
+  background-color: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.nc-incremental-option:hover:not(.nc-incremental-option-disabled) {
+  border-color: var(--interactive-accent);
+  background-color: var(--background-modifier-hover);
+}
+
+.nc-incremental-option-active {
+  border-color: var(--interactive-accent);
+  background-color: var(--background-modifier-active-hover);
+  box-shadow: 0 0 0 2px rgba(var(--interactive-accent-rgb), 0.2);
+}
+
+.nc-incremental-option-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.nc-incremental-option-label {
+  font-weight: 500;
+  font-size: 13px;
+  color: var(--text-normal);
+  margin-bottom: 4px;
+}
+
+.nc-incremental-option-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.nc-continue-range-info {
+  margin-top: 12px;
+  padding: 8px 12px;
+  background-color: var(--background-modifier-success);
+  border-radius: 6px;
+}
+
+.nc-continue-range-text {
+  font-size: 13px;
+  color: var(--text-normal);
+}
+
+.nc-restart-warning {
+  margin-top: 12px;
+  padding: 8px 12px;
+  background-color: var(--background-modifier-error);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.nc-warning-icon {
+  flex-shrink: 0;
+}
+
+.nc-warning-text {
+  font-size: 12px;
+  color: var(--text-error);
+}
+
+.nc-chapter-range-wrapper {
+  margin: 12px 0;
+}
+
+
+/* ==================== Checkpoint Status Styles ==================== */
+
+.nc-checkpoint-status-section {
+  margin: 12px 0;
+}
+
+.nc-checkpoint-status-loaded {
+  /* Loaded state */
+}
+
+.nc-checkpoint-status-container {
+  background-color: var(--background-modifier-warning);
+  border: 1px solid var(--color-yellow);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.nc-checkpoint-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.nc-checkpoint-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-warning);
+}
+
+.nc-checkpoint-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.nc-checkpoint-info-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-normal);
+}
+
+.nc-checkpoint-icon {
+  flex-shrink: 0;
+}
+
+.nc-checkpoint-info-text {
+  color: var(--text-normal);
+}
+
+.nc-checkpoint-stages-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.nc-checkpoint-stages-label {
+  flex-shrink: 0;
+  color: var(--text-success);
+}
+
+.nc-checkpoint-stages-text {
+  color: var(--text-muted);
+}
+
+.nc-checkpoint-current-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.nc-checkpoint-current-label {
+  flex-shrink: 0;
+  color: var(--text-warning);
+}
+
+.nc-checkpoint-current-text {
+  color: var(--text-muted);
+}
+
+.nc-checkpoint-button-container {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.nc-btn-checkpoint-resume {
+  background-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border-color: var(--interactive-accent);
+  font-weight: 500;
+}
+
+.nc-btn-checkpoint-resume:hover:not(:disabled) {
+  background-color: var(--interactive-accent-hover);
+}
+
+.nc-btn-checkpoint-discard {
+  background-color: var(--background-secondary);
+  color: var(--text-muted);
+  border-color: var(--background-modifier-border);
+}
+
+.nc-btn-checkpoint-discard:hover:not(:disabled) {
+  background-color: var(--background-modifier-error);
+  color: var(--text-error);
+  border-color: var(--text-error);
+}
+
+/* ==================== Batch Suggestion Styles ==================== */
+/* Requirements: 1.3.1.1, 1.3.1.2 */
+
+.nc-batch-suggestion-section {
+  margin-top: 12px;
+}
+
+.nc-batch-suggestion-loaded {
+  display: block;
+}
+
+.nc-batch-suggestion-container {
+  background-color: var(--background-modifier-warning);
+  border: 1px solid var(--text-warning);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.nc-batch-suggestion-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.nc-batch-suggestion-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-warning);
+}
+
+.nc-batch-suggestion-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.nc-batch-suggestion-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-normal);
+}
+
+.nc-batch-warning-icon {
+  flex-shrink: 0;
+}
+
+.nc-batch-warning-text {
+  line-height: 1.4;
+}
+
+.nc-batch-suggestion-details {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  background-color: var(--background-primary);
+  border-radius: 6px;
+}
+
+.nc-batch-detail-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.nc-batch-detail-icon {
+  flex-shrink: 0;
+}
+
+.nc-batch-detail-text {
+  line-height: 1.4;
+}
+
+.nc-batch-suggestion-tip {
+  font-size: 11px;
+  color: var(--text-faint);
+  font-style: italic;
+  padding-top: 4px;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.nc-batch-tip-text {
+  line-height: 1.4;
+}
