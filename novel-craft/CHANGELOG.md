@@ -5,6 +5,27 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.3.3] - 2024-12-22
+
+### 修复
+- 修复下载完成时提示的书名与实际下载书籍不一致的问题
+  - 在下载开始时保存书名到局部常量，避免异步操作中引用错误
+- 修复可借鉴清单显示 `[object Object]` 的问题
+  - 新增 `normalizeTakeaways()` 方法清洗 LLM 返回的数据
+  - 支持处理对象数组、混合数组等多种格式
+  - 自动提取对象中的 title、content、description 等字段
+
+### 新增
+- 下载按钮实时显示下载进度
+  - 下载过程中按钮文本显示 "下载中 XX%"
+  - 下载完成后显示 "已下载 ✓"
+  - 下载失败后显示 "下载失败"
+
+### 变更
+- `SearchModal.ts` 重构 `downloadBook()` 方法，优化下载流程
+- `AnalysisService.ts` 新增 `normalizeTakeaways()` 数据清洗方法
+- `styles.css` 新增 `.nc-downloading` 下载中按钮样式
+
 ## [1.3.2] - 2024-12-22
 
 ### 修复

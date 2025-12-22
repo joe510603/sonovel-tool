@@ -296,6 +296,8 @@
   border-radius: 4px;
   cursor: pointer;
   font-size: 12px;
+  min-width: 70px;
+  transition: all 0.2s ease;
 }
 
 .novel-craft-download-button:hover:not(:disabled) {
@@ -305,6 +307,13 @@
 .novel-craft-download-button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+/* 下载中状态样式 */
+.novel-craft-download-button.nc-downloading {
+  background-color: var(--text-accent);
+  min-width: 90px;
+  font-family: var(--font-monospace);
 }
 
 /* Download Progress Modal Styles */

@@ -223,30 +223,39 @@ export class SearchModal extends Modal {
       return;
     }
 
+    // Bug fix: 保存书名到局部常量，避免异步操作中引用错误
+    const bookName = book.bookName;
+    const filename = `${bookName}.epub`;
+    
     const originalText = button.textContent;
     button.textContent = '准备中...';
     button.disabled = true;
-    this.currentDownload = book.bookName;
+    button.addClass('nc-downloading');
+    this.currentDownload = bookName;
 
     // Show progress modal
-    const progressModal = new DownloadProgressModal(this.app, book.bookName);
+    const progressModal = new DownloadProgressModal(this.app, bookName);
     progressModal.open();
 
     try {
       // Step 1: Fetch book to SoNovel server
       progressModal.updateProgress(0, '正在获取书籍信息...');
+      button.textContent = '获取中...';
       await this.soNovelService.fetchBook(book);
 
       // Step 2: Get local books to find the downloaded file
       progressModal.updateProgress(30, '正在下载书籍...');
+      button.textContent = '下载中 0%';
       
-      // Register progress callback
-      const filename = `${book.bookName}.epub`;
+      // Register progress callback - 同时更新按钮和弹窗
       this.soNovelService.onDownloadProgress(filename, (progress) => {
+        const percent = Math.round(progress.progress * 100);
         progressModal.updateProgress(
           30 + progress.progress * 0.5,
-          progress.message || `下载中: ${Math.round(progress.progress * 100)}%`
+          progress.message || `下载中: ${percent}%`
         );
+        // Bug fix: 在按钮上显示下载进度
+        button.textContent = `下载中 ${percent}%`;
 
         if (progress.status === 'failed') {
           throw new Error(progress.message || '下载失败');
@@ -254,10 +263,11 @@ export class SearchModal extends Modal {
       });
 
       // Wait a bit for download to complete
-      await this.waitForDownload(filename, progressModal);
+      await this.waitForDownload(filename, progressModal, button);
 
       // Step 3: Download file to vault
       progressModal.updateProgress(80, '正在保存到 Vault...');
+      button.textContent = '保存中...';
       const fileData = await this.soNovelService.downloadBook(filename, this.settings.downloadPath);
 
       // Save to vault
@@ -265,7 +275,9 @@ export class SearchModal extends Modal {
       await this.saveToVault(savePath, fileData);
 
       progressModal.updateProgress(100, '下载完成！');
-      showSuccess(`《${book.bookName}》下载完成`);
+      button.textContent = '已下载 ✓';
+      // Bug fix: 使用保存的书名常量
+      showSuccess(`《${bookName}》下载完成`);
 
       // Callback
       if (this.onBookDownloaded) {
@@ -281,11 +293,16 @@ export class SearchModal extends Modal {
       const errorMessage = error instanceof Error ? error.message : '未知错误';
       progressModal.showError(errorMessage);
       showError('下载失败', errorMessage);
+      button.textContent = '下载失败';
     } finally {
-      button.textContent = originalText;
-      button.disabled = false;
+      // 延迟恢复按钮状态，让用户看到结果
+      setTimeout(() => {
+        button.textContent = originalText;
+        button.disabled = false;
+        button.removeClass('nc-downloading');
+      }, 2000);
       this.currentDownload = null;
-      this.soNovelService.removeProgressCallback(`${book.bookName}.epub`);
+      this.soNovelService.removeProgressCallback(filename);
     }
   }
 
@@ -294,7 +311,8 @@ export class SearchModal extends Modal {
    */
   private async waitForDownload(
     filename: string,
-    progressModal: DownloadProgressModal
+    progressModal: DownloadProgressModal,
+    button: HTMLButtonElement
   ): Promise<void> {
     // Poll for local books to check if download is complete
     const maxAttempts = 60; // 60 seconds timeout
@@ -309,7 +327,10 @@ export class SearchModal extends Modal {
         // Ignore errors during polling
       }
       await new Promise((resolve) => setTimeout(resolve, 1000));
+      const percent = Math.round((i / maxAttempts) * 100);
       progressModal.updateProgress(30 + (i / maxAttempts) * 50, `下载中... (${i + 1}s)`);
+      // 同时更新按钮进度
+      button.textContent = `下载中 ${percent}%`;
     }
     throw new Error('下载超时，请重试');
   }

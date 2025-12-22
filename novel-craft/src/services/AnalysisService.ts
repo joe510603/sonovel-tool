@@ -1549,14 +1549,94 @@ ${partialResult.synopsis}
     
     this.updateProgress('可借鉴清单', 0, '可借鉴清单: AI 响应完成，正在解析...');
     
-    const parsed = this.parseJsonResponse<{ takeaways: string[] }>(
+    const parsed = this.parseJsonResponse<{ takeaways: unknown[] }>(
       response,
       { takeaways: [] }
     );
 
-    this.updateProgress('可借鉴清单', 0, `可借鉴清单: 完成 ✓ 已生成 ${parsed.takeaways.length} 条借鉴要点`);
+    // Bug fix: 清洗 takeaways 数据，确保返回字符串数组
+    const normalizedTakeaways = this.normalizeTakeaways(parsed.takeaways);
 
-    return parsed.takeaways;
+    this.updateProgress('可借鉴清单', 0, `可借鉴清单: 完成 ✓ 已生成 ${normalizedTakeaways.length} 条借鉴要点`);
+
+    return normalizedTakeaways;
+  }
+
+  /**
+   * 清洗 takeaways 数据，确保返回纯字符串数组
+   * 处理 LLM 可能返回的各种格式：
+   * - 字符串数组: ["item1", "item2"]
+   * - 对象数组: [{ title: "xxx", content: "xxx" }]
+   * - 混合数组: ["item1", { title: "xxx" }]
+   */
+  private normalizeTakeaways(takeaways: unknown[]): string[] {
+    if (!Array.isArray(takeaways)) {
+      return [];
+    }
+
+    return takeaways
+      .map((item) => {
+        // 如果已经是字符串，直接返回
+        if (typeof item === 'string') {
+          return item.trim();
+        }
+        
+        // 如果是对象，尝试提取文本内容
+        if (item && typeof item === 'object') {
+          const obj = item as Record<string, unknown>;
+          
+          // 尝试常见的字段名
+          const textFields = ['title', 'content', 'description', 'text', 'name', 'value', 'point', 'takeaway'];
+          
+          // 优先使用 title + content 组合
+          if (obj.title && obj.content) {
+            return `${String(obj.title).trim()}：${String(obj.content).trim()}`;
+          }
+          
+          // 尝试单个字段
+          for (const field of textFields) {
+            if (obj[field] && typeof obj[field] === 'string') {
+              return String(obj[field]).trim();
+            }
+          }
+          
+          // 如果有 title 或 name，使用它
+          if (obj.title) {
+            return String(obj.title).trim();
+          }
+          if (obj.name) {
+            return String(obj.name).trim();
+          }
+          
+          // 最后尝试 JSON 序列化（但过滤掉 [object Object]）
+          try {
+            const jsonStr = JSON.stringify(item);
+            if (jsonStr && jsonStr !== '{}' && !jsonStr.includes('[object Object]')) {
+              // 如果是简单对象，提取所有值
+              const values = Object.values(obj)
+                .filter(v => typeof v === 'string' || typeof v === 'number')
+                .map(v => String(v).trim())
+                .filter(v => v.length > 0);
+              if (values.length > 0) {
+                return values.join('：');
+              }
+            }
+          } catch {
+            // 忽略序列化错误
+          }
+        }
+        
+        // 如果是数字或其他基本类型，转为字符串
+        if (item !== null && item !== undefined) {
+          const str = String(item).trim();
+          if (str && str !== '[object Object]') {
+            return str;
+          }
+        }
+        
+        return '';
+      })
+      .filter((item) => item.length > 0); // 过滤空字符串
   }
 
 
