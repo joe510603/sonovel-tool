@@ -510,6 +510,7 @@ export class AnalysisView extends ItemView {
 
   /**
    * 加载分析元数据并显示状态
+   * 优先使用元数据文件，如果不存在则从现有笔记推断
    * Requirements: 1.1.1.1, 1.1.1.2, 1.1.1.3, 1.1.1.4
    */
   private async loadAnalysisMetadata(): Promise<void> {
@@ -521,8 +522,9 @@ export class AnalysisView extends ItemView {
       const notesPath = this.settings.notesPath || '拆书笔记';
       const bookTitle = this.currentBook.metadata.title;
       
-      // Requirements: 1.1.1.1 - 检查是否存在分析元数据
-      this.currentMetadata = await this.metadataService.getMetadata(
+      // 使用 getOrInferMetadata 来获取或推断元数据
+      // 这会检查元数据文件，如果不存在则检查笔记文件夹并推断
+      this.currentMetadata = await this.metadataService.getOrInferMetadata(
         this.epubPath,
         bookTitle,
         notesPath
@@ -722,16 +724,34 @@ export class AnalysisView extends ItemView {
       const outputPath = this.settings.notesPath || '拆书笔记';
       
       const createFile = async (path: string, content: string) => {
-        const folderPath = path.substring(0, path.lastIndexOf('/'));
-        if (folderPath) {
-          const folder = this.app.vault.getAbstractFileByPath(folderPath);
-          if (!folder) await this.app.vault.createFolder(folderPath);
-        }
-        const existingFile = this.app.vault.getAbstractFileByPath(path);
-        if (existingFile instanceof TFile) {
-          await this.app.vault.modify(existingFile, content);
-        } else {
-          await this.app.vault.create(path, content);
+        try {
+          const folderPath = path.substring(0, path.lastIndexOf('/'));
+          if (folderPath) {
+            const folder = this.app.vault.getAbstractFileByPath(folderPath);
+            if (!folder) {
+              try {
+                await this.app.vault.createFolder(folderPath);
+              } catch (e) {
+                // 忽略文件夹已存在错误
+              }
+            }
+          }
+          const existingFile = this.app.vault.getAbstractFileByPath(path);
+          if (existingFile instanceof TFile) {
+            await this.app.vault.modify(existingFile, content);
+          } else {
+            try {
+              await this.app.vault.create(path, content);
+            } catch (e) {
+              // 文件可能已存在，尝试修改
+              const file = this.app.vault.getAbstractFileByPath(path);
+              if (file instanceof TFile) {
+                await this.app.vault.modify(file, content);
+              }
+            }
+          }
+        } catch (error) {
+          console.error(`创建/修改文件失败: ${path}`, error);
         }
       };
       
@@ -924,6 +944,9 @@ export class AnalysisView extends ItemView {
   private selectIncrementalMode(mode: IncrementalMode): void {
     this.selectedIncrementalMode = mode;
     
+    // 先清除之前模式的 UI 元素
+    this.clearIncrementalModeUI();
+    
     switch (mode) {
       case 'continue':
         // Requirements: 1.1.2.2 - 自动设置起始章节
@@ -963,6 +986,23 @@ export class AnalysisView extends ItemView {
     
     // 更新开始按钮文本
     this.updateStartButtonText();
+  }
+
+  /**
+   * 清除增量模式相关的 UI 元素
+   */
+  private clearIncrementalModeUI(): void {
+    // 移除继续分析的范围提示
+    const continueInfo = this.incrementalModeSection.querySelector('.nc-continue-range-info');
+    if (continueInfo) {
+      continueInfo.remove();
+    }
+    
+    // 移除重新分析的警告
+    const restartWarning = this.incrementalModeSection.querySelector('.nc-restart-warning');
+    if (restartWarning) {
+      restartWarning.remove();
+    }
   }
 
   /**
@@ -1056,11 +1096,170 @@ export class AnalysisView extends ItemView {
     showWarning('正在终止分析...');
   }
 
+  /**
+   * 显示智能分析确认对话框
+   * 当检测到已分析的章节时，询问用户如何处理
+   */
+  private async showSmartAnalysisDialog(
+    suggestion: ReturnType<MetadataService['getSmartAnalysisSuggestion']>,
+    requestedStart: number,
+    requestedEnd: number
+  ): Promise<'skip_analyzed' | 'reanalyze_all' | 'cancel' | null> {
+    return new Promise((resolve) => {
+      // 创建对话框遮罩
+      const overlay = document.createElement('div');
+      overlay.className = 'nc-dialog-overlay';
+      
+      const dialog = document.createElement('div');
+      dialog.className = 'nc-smart-analysis-dialog';
+      
+      // 标题
+      const title = document.createElement('h3');
+      title.className = 'nc-dialog-title';
+      title.textContent = '🔍 检测到已分析内容';
+      dialog.appendChild(title);
+      
+      // 消息
+      const message = document.createElement('div');
+      message.className = 'nc-dialog-message';
+      message.innerHTML = `
+        <p>${suggestion.message}</p>
+        ${suggestion.overlappingChapters.length > 0 ? `
+          <div class="nc-dialog-detail">
+            <span class="nc-dialog-label">已分析章节:</span>
+            <span class="nc-dialog-value">${suggestion.overlappingChapters.map(r => `${r.start}-${r.end}章`).join(', ')}</span>
+          </div>
+        ` : ''}
+        ${suggestion.newChapters.length > 0 ? `
+          <div class="nc-dialog-detail">
+            <span class="nc-dialog-label">新章节:</span>
+            <span class="nc-dialog-value">${suggestion.newChapters.map(r => `${r.start}-${r.end}章`).join(', ')}</span>
+          </div>
+        ` : ''}
+      `;
+      dialog.appendChild(message);
+      
+      // 按钮区域
+      const buttons = document.createElement('div');
+      buttons.className = 'nc-dialog-buttons';
+      
+      // 只分析新章节按钮（如果有新章节）
+      if (suggestion.newChapters.length > 0) {
+        const skipBtn = document.createElement('button');
+        skipBtn.className = 'nc-btn nc-btn-primary';
+        skipBtn.textContent = `✅ 只分析新章节 (${suggestion.newChapters.reduce((sum, r) => sum + (r.end - r.start + 1), 0)}章)`;
+        skipBtn.addEventListener('click', () => {
+          overlay.remove();
+          resolve('skip_analyzed');
+        });
+        buttons.appendChild(skipBtn);
+      }
+      
+      // 重新分析全部按钮
+      const reanalyzeBtn = document.createElement('button');
+      reanalyzeBtn.className = 'nc-btn nc-btn-warning';
+      reanalyzeBtn.textContent = `🔄 重新分析全部 (${requestedEnd - requestedStart + 1}章)`;
+      reanalyzeBtn.addEventListener('click', () => {
+        overlay.remove();
+        resolve('reanalyze_all');
+      });
+      buttons.appendChild(reanalyzeBtn);
+      
+      // 取消按钮
+      const cancelBtn = document.createElement('button');
+      cancelBtn.className = 'nc-btn nc-btn-secondary';
+      cancelBtn.textContent = '取消';
+      cancelBtn.addEventListener('click', () => {
+        overlay.remove();
+        resolve('cancel');
+      });
+      buttons.appendChild(cancelBtn);
+      
+      dialog.appendChild(buttons);
+      overlay.appendChild(dialog);
+      document.body.appendChild(overlay);
+    });
+  }
+
   private async startAnalysis(): Promise<void> {
     if (this.isAnalyzing) return;
 
     if (!this.llmService.getDefaultProvider()) {
       showWarning('请先在设置中配置 LLM 服务');
+      return;
+    }
+
+    // 先解析文档获取章节信息
+    let fullBook: ParsedBook;
+    try {
+      const file = this.app.vault.getAbstractFileByPath(this.epubPath);
+      if (!(file instanceof TFile)) throw new Error(`文件不存在: ${this.epubPath}`);
+      
+      const fileData = await this.app.vault.readBinary(file);
+      fullBook = await ParserFactory.parseDocument(fileData, file.name);
+    } catch (error) {
+      handleError(error, '解析文档');
+      return;
+    }
+
+    // 计算请求的章节范围
+    const requestedStart = this.analyzeAllChapters ? 1 : this.chapterStart;
+    const requestedEnd = this.analyzeAllChapters ? fullBook.chapters.length : Math.min(this.chapterEnd, fullBook.chapters.length);
+    
+    // 智能检测已分析的内容 - 使用 getOrInferMetadata 确保能检测到现有笔记
+    const outputPath = this.settings.notesPath || '拆书笔记';
+    
+    // 重新获取或推断元数据，确保能检测到现有的分析
+    const latestMetadata = await this.metadataService.getOrInferMetadata(
+      this.epubPath,
+      fullBook.metadata.title,
+      outputPath
+    );
+    this.currentMetadata = latestMetadata;
+    
+    const suggestion = this.metadataService.getSmartAnalysisSuggestion(
+      latestMetadata,
+      requestedStart,
+      requestedEnd,
+      fullBook.chapters.length
+    );
+
+    // 如果有重叠，询问用户
+    let shouldAppend = false;
+    let chaptersToAnalyze: Array<{start: number; end: number}> = [];
+    
+    if (suggestion.suggestion === 'full_overlap') {
+      // 全部已分析，询问是否重新分析
+      const choice = await this.showSmartAnalysisDialog(suggestion, requestedStart, requestedEnd);
+      if (choice === 'cancel' || choice === null) {
+        return;
+      }
+      if (choice === 'reanalyze_all') {
+        chaptersToAnalyze = [{ start: requestedStart, end: requestedEnd }];
+        shouldAppend = false; // 重新分析会覆盖
+      }
+    } else if (suggestion.suggestion === 'partial_overlap') {
+      // 部分重叠，询问用户
+      const choice = await this.showSmartAnalysisDialog(suggestion, requestedStart, requestedEnd);
+      if (choice === 'cancel' || choice === null) {
+        return;
+      }
+      if (choice === 'skip_analyzed') {
+        chaptersToAnalyze = suggestion.newChapters;
+        shouldAppend = true; // 追加模式
+      } else if (choice === 'reanalyze_all') {
+        chaptersToAnalyze = [{ start: requestedStart, end: requestedEnd }];
+        shouldAppend = false;
+      }
+    } else {
+      // 全新分析或继续分析
+      chaptersToAnalyze = [{ start: requestedStart, end: requestedEnd }];
+      shouldAppend = suggestion.hasExistingAnalysis; // 如果有已存在的分析，使用追加模式
+    }
+
+    // 如果没有要分析的章节，直接返回
+    if (chaptersToAnalyze.length === 0) {
+      showInfo('没有需要分析的新章节');
       return;
     }
 
@@ -1082,82 +1281,128 @@ export class AnalysisView extends ItemView {
     let book: ParsedBook | null = null;
 
     try {
-      this.updateProgress({ stage: '解析中', progress: 0, message: '正在解析文档...' });
-      this.addStageResult('解析文档', 'running', '正在解析...');
-      
-      const file = this.app.vault.getAbstractFileByPath(this.epubPath);
-      if (!(file instanceof TFile)) throw new Error(`文件不存在: ${this.epubPath}`);
-      
-      const fileData = await this.app.vault.readBinary(file);
-      const fullBook = await ParserFactory.parseDocument(fileData, file.name);
+      this.updateProgress({ stage: '准备中', progress: 0, message: '正在准备分析...' });
+      this.addStageResult('解析文档', 'completed', `解析完成: ${fullBook.chapters.length} 章`);
 
-      if (this.analyzeAllChapters) {
-        book = fullBook;
-      } else {
-        const startIdx = Math.max(0, this.chapterStart - 1);
-        const endIdx = Math.min(fullBook.chapters.length, this.chapterEnd);
+      // 分析所有需要分析的章节范围
+      for (let i = 0; i < chaptersToAnalyze.length; i++) {
+        const range = chaptersToAnalyze[i];
+        const rangeLabel = chaptersToAnalyze.length > 1 
+          ? `(${i + 1}/${chaptersToAnalyze.length}) ` 
+          : '';
+        
+        this.updateProgress({ 
+          stage: '分析中', 
+          progress: (i / chaptersToAnalyze.length) * 100, 
+          message: `${rangeLabel}正在分析第 ${range.start}-${range.end} 章...` 
+        });
+
+        // 过滤章节
+        const startIdx = Math.max(0, range.start - 1);
+        const endIdx = Math.min(fullBook.chapters.length, range.end);
         const filteredChapters = fullBook.chapters.slice(startIdx, endIdx);
         const filteredWordCount = filteredChapters.reduce((sum, ch) => sum + ch.wordCount, 0);
         book = { ...fullBook, chapters: filteredChapters, totalWordCount: filteredWordCount };
+
+        const config: AnalysisConfig = {
+          mode: this.selectedMode,
+          novelType: this.selectedNovelType,
+          customFocus: this.customFocus.length > 0 ? this.customFocus : undefined,
+          customTypeName: this.selectedNovelType === 'custom' ? this.customTypeName : undefined,
+          customPrompts: this.settings.customPrompts,
+          customTypePrompts: this.settings.customTypePrompts
+        };
+
+        const analysisService = new AnalysisService(this.llmService);
+        // 设置断点服务，支持断点续传
+        analysisService.setCheckpointService(this.checkpointService);
+        
+        // 计算章节范围用于断点保存
+        const chapterRange = { start: range.start, end: range.end };
+        
+        // 创建文件函数 - 支持追加模式
+        const createFile = async (path: string, content: string) => {
+          try {
+            // 确保文件夹存在
+            const folderPath = path.substring(0, path.lastIndexOf('/'));
+            if (folderPath) {
+              const folder = this.app.vault.getAbstractFileByPath(folderPath);
+              if (!folder) {
+                try {
+                  await this.app.vault.createFolder(folderPath);
+                } catch (folderError) {
+                  // 文件夹可能已存在，忽略错误
+                  if (!(folderError instanceof Error && folderError.message.includes('already exists'))) {
+                    throw folderError;
+                  }
+                }
+              }
+            }
+            
+            // 检查文件是否存在
+            const existingFile = this.app.vault.getAbstractFileByPath(path);
+            if (existingFile instanceof TFile) {
+              if (shouldAppend) {
+                // 追加模式：读取现有内容并追加
+                const existingContent = await this.app.vault.read(existingFile);
+                const appendedContent = this.appendAnalysisContent(existingContent, content, range);
+                await this.app.vault.modify(existingFile, appendedContent);
+              } else {
+                // 覆盖模式
+                await this.app.vault.modify(existingFile, content);
+              }
+            } else {
+              // 文件不存在，创建新文件
+              try {
+                await this.app.vault.create(path, content);
+              } catch (createError) {
+                // 如果创建失败（可能是竞态条件导致文件已存在），尝试修改
+                if (createError instanceof Error && createError.message.includes('already exists')) {
+                  const file = this.app.vault.getAbstractFileByPath(path);
+                  if (file instanceof TFile) {
+                    await this.app.vault.modify(file, content);
+                  }
+                } else {
+                  throw createError;
+                }
+              }
+            }
+          } catch (error) {
+            console.error(`创建/修改文件失败: ${path}`, error);
+            throw error;
+          }
+        };
+        
+        const onNoteGenerated = (noteType: string, filePath: string) => {
+          this.addGeneratedFileInfo(noteType, filePath);
+          showInfo(`📝 ${shouldAppend ? '已追加' : '已生成'}: ${noteType}`);
+        };
+        
+        const result = await analysisService.analyzeWithResults(
+          book, config,
+          (progress) => this.updateProgress({
+            ...progress,
+            message: `${rangeLabel}${progress.message}`
+          }),
+          (stage, status, message, result) => this.addStageResult(stage, status, message, result),
+          onNoteGenerated, createFile, outputPath, this.analysisController,
+          outputPath, chapterRange
+        );
+
+        if (this.onAnalysisComplete) {
+          this.onAnalysisComplete(result, book);
+        }
       }
-
-      this.addStageResult('解析文档', 'completed', `解析完成: ${book.chapters.length} 章`);
-
-      const config: AnalysisConfig = {
-        mode: this.selectedMode,
-        novelType: this.selectedNovelType,
-        customFocus: this.customFocus.length > 0 ? this.customFocus : undefined,
-        customTypeName: this.selectedNovelType === 'custom' ? this.customTypeName : undefined,
-        customPrompts: this.settings.customPrompts,
-        customTypePrompts: this.settings.customTypePrompts
-      };
-
-      const analysisService = new AnalysisService(this.llmService);
-      // 设置断点服务，支持断点续传
-      analysisService.setCheckpointService(this.checkpointService);
-      const outputPath = this.settings.notesPath || '拆书笔记';
-      
-      // 计算章节范围用于断点保存
-      const chapterRange = this.analyzeAllChapters 
-        ? { start: 1, end: book.chapters.length }
-        : { start: this.chapterStart, end: this.chapterEnd };
-      
-      const createFile = async (path: string, content: string) => {
-        const folderPath = path.substring(0, path.lastIndexOf('/'));
-        if (folderPath) {
-          const folder = this.app.vault.getAbstractFileByPath(folderPath);
-          if (!folder) await this.app.vault.createFolder(folderPath);
-        }
-        const existingFile = this.app.vault.getAbstractFileByPath(path);
-        if (existingFile instanceof TFile) {
-          await this.app.vault.modify(existingFile, content);
-        } else {
-          await this.app.vault.create(path, content);
-        }
-      };
-      
-      const onNoteGenerated = (noteType: string, filePath: string) => {
-        this.addGeneratedFileInfo(noteType, filePath);
-        showInfo(`📝 已生成: ${noteType}`);
-      };
-      
-      const result = await analysisService.analyzeWithResults(
-        book, config,
-        (progress) => this.updateProgress(progress),
-        (stage, status, message, result) => this.addStageResult(stage, status, message, result),
-        onNoteGenerated, createFile, outputPath, this.analysisController,
-        outputPath, chapterRange
-      );
 
       this.updateProgress({ stage: '完成', progress: 100, message: '分析完成！' });
-      showSuccess(`《${book.metadata.title}》分析完成`);
-
-      if (this.onAnalysisComplete) {
-        this.onAnalysisComplete(result, book);
-      }
+      const totalNewChapters = chaptersToAnalyze.reduce((sum, r) => sum + (r.end - r.start + 1), 0);
+      showSuccess(`《${fullBook.metadata.title}》分析完成，共分析 ${totalNewChapters} 章${shouldAppend ? '（已追加到现有笔记）' : ''}`);
 
       this.startButton.textContent = '分析完成 ✓';
       this.controlButtons.style.display = 'none';
+
+      // 刷新元数据显示
+      await this.loadAnalysisMetadata();
 
     } catch (error) {
       if (error instanceof AnalysisStoppedError) {
@@ -1179,6 +1424,51 @@ export class AnalysisView extends ItemView {
         this.startButton.textContent = '重新分析';
       }
     }
+  }
+
+  /**
+   * 追加分析内容到现有笔记
+   * 智能合并新旧内容，不覆盖原有分析
+   */
+  private appendAnalysisContent(
+    existingContent: string,
+    newContent: string,
+    range: { start: number; end: number }
+  ): string {
+    const lines: string[] = [];
+    
+    // 保留原有内容
+    lines.push(existingContent.trimEnd());
+    lines.push('');
+    lines.push('');
+    
+    // 添加分隔线和新增章节标注
+    lines.push('---');
+    lines.push('');
+    lines.push(`## 📖 新增分析 (第 ${range.start}-${range.end} 章)`);
+    lines.push('');
+    
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    lines.push(`> 分析时间: ${dateStr}`);
+    lines.push('');
+    
+    // 提取新内容的主体部分（跳过标题）
+    const newLines = newContent.split('\n');
+    let skipHeader = true;
+    for (const line of newLines) {
+      // 跳过第一个一级标题
+      if (skipHeader && line.startsWith('# ')) {
+        skipHeader = false;
+        continue;
+      }
+      if (!skipHeader || !line.startsWith('# ')) {
+        skipHeader = false;
+        lines.push(line);
+      }
+    }
+    
+    return lines.join('\n');
   }
 
   private createProgressSection(): void {

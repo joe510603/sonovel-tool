@@ -5,6 +5,50 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.3.2] - 2024-12-22
+
+### 修复
+- 修复 Windows 环境下搜索功能 CORS 跨域错误
+  - 使用 Obsidian 的 `requestUrl` API 替代原生 `fetch`
+  - 绑过浏览器 CORS 限制，支持访问本地 SoNovel 服务
+- 修复切换分析模式时 UI 元素未正确清除的问题
+  - 切换到"追加分析"时正确移除"继续分析"的范围提示
+  - 切换模式时正确移除"重新分析"的警告提示
+
+### 变更
+- `SoNovelService.ts` 重构所有 HTTP 请求使用 `requestUrl` API
+- `AnalysisView.ts` 新增 `clearIncrementalModeUI()` 方法清理模式切换时的 UI 元素
+
+## [1.3.1] - 2024-12-21
+
+### 新增
+
+#### 智能增量分析
+- 分析前自动检测已分析的章节内容
+- 智能判断重叠章节，弹出对话框询问用户处理方式：
+  - **只分析新章节**：跳过已分析的章节，只分析未分析的部分
+  - **重新分析全部**：覆盖现有分析结果
+  - **取消**：取消本次分析
+- 追加模式下自动在现有笔记末尾追加新内容，不覆盖原有分析
+- 新增 `getSmartAnalysisSuggestion()` 方法智能分析章节重叠情况
+- 新增 `getUnanalyzedRanges()` 方法获取未分析的章节范围
+- 新增 `getOverlappingRanges()` 方法获取重叠的章节范围
+
+### 修复
+- 修复从现有笔记推断章节数时正则表达式匹配失败的问题
+- 增强 `inferAnalyzedRangeFromNotes()` 方法，支持更多章节数格式：
+  - `**章节数**: 30 章`
+  - `章节数: 30`
+  - `分析章节: 1-30`
+  - `第1-30章`
+  - `共30章`
+- 添加详细的调试日志，便于排查章节检测问题
+
+### 变更
+- `AnalysisView.ts` 重构 `startAnalysis()` 方法，添加智能检测逻辑
+- `MetadataService.ts` 新增智能分析建议相关方法
+- `styles.css` 新增 `.nc-dialog-*` 和 `.nc-smart-analysis-dialog` 样式
+
 ## [1.3.0] - 2024-12-21
 
 ### 新增

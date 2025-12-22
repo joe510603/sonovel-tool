@@ -1,8 +1,10 @@
+import { requestUrl } from 'obsidian';
 import { BookSearchResult, LocalBook, DownloadProgress } from '../types';
 
 /**
  * SoNovelService - 与 SoNovel API 交互的服务类
  * 提供小说搜索、下载和进度追踪功能
+ * 使用 Obsidian 的 requestUrl API 绑过 CORS 限制
  */
 export class SoNovelService {
   private baseUrl: string;
@@ -30,16 +32,21 @@ export class SoNovelService {
       return [];
     }
 
-    const response = await fetch(
-      `${this.baseUrl}/search/aggregated?kw=${encodeURIComponent(keyword.trim())}`
-    );
-
-    if (!response.ok) {
-      throw new Error(`搜索失败: ${response.status} ${response.statusText}`);
+    const url = `${this.baseUrl}/search/aggregated?kw=${encodeURIComponent(keyword.trim())}`;
+    
+    try {
+      const response = await requestUrl({ url, method: 'GET' });
+      return this.normalizeSearchResults(response.json);
+    } catch (error) {
+      // 如果 requestUrl 失败，尝试使用 fetch 作为后备
+      console.warn('requestUrl failed, trying fetch:', error);
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`搜索失败: ${response.status} ${response.statusText}`);
+      }
+      const data = await response.json();
+      return this.normalizeSearchResults(data);
     }
-
-    const data = await response.json();
-    return this.normalizeSearchResults(data);
   }
 
   /**
@@ -85,10 +92,17 @@ export class SoNovelService {
       url: book.url
     });
     
-    const response = await fetch(`${this.baseUrl}/book-fetch?${params.toString()}`);
-
-    if (!response.ok) {
-      throw new Error(`获取书籍失败: ${response.status} ${response.statusText}`);
+    const url = `${this.baseUrl}/book-fetch?${params.toString()}`;
+    
+    try {
+      await requestUrl({ url, method: 'GET' });
+    } catch (error) {
+      // 如果 requestUrl 失败，尝试使用 fetch 作为后备
+      console.warn('requestUrl failed, trying fetch:', error);
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`获取书籍失败: ${response.status} ${response.statusText}`);
+      }
     }
   }
 
@@ -97,14 +111,21 @@ export class SoNovelService {
    * @returns 本地书籍列表
    */
   async getLocalBooks(): Promise<LocalBook[]> {
-    const response = await fetch(`${this.baseUrl}/local-books`);
-
-    if (!response.ok) {
-      throw new Error(`获取本地书籍列表失败: ${response.status} ${response.statusText}`);
+    const url = `${this.baseUrl}/local-books`;
+    
+    try {
+      const response = await requestUrl({ url, method: 'GET' });
+      return this.normalizeLocalBooks(response.json);
+    } catch (error) {
+      // 如果 requestUrl 失败，尝试使用 fetch 作为后备
+      console.warn('requestUrl failed, trying fetch:', error);
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`获取本地书籍列表失败: ${response.status} ${response.statusText}`);
+      }
+      const data = await response.json();
+      return this.normalizeLocalBooks(data);
     }
-
-    const data = await response.json();
-    return this.normalizeLocalBooks(data);
   }
 
   /**
@@ -139,15 +160,20 @@ export class SoNovelService {
    * @returns 保存后的完整路径
    */
   async downloadBook(filename: string, savePath: string): Promise<ArrayBuffer> {
-    const response = await fetch(
-      `${this.baseUrl}/book-download?filename=${encodeURIComponent(filename)}`
-    );
-
-    if (!response.ok) {
-      throw new Error(`下载书籍失败: ${response.status} ${response.statusText}`);
+    const url = `${this.baseUrl}/book-download?filename=${encodeURIComponent(filename)}`;
+    
+    try {
+      const response = await requestUrl({ url, method: 'GET' });
+      return response.arrayBuffer;
+    } catch (error) {
+      // 如果 requestUrl 失败，尝试使用 fetch 作为后备
+      console.warn('requestUrl failed, trying fetch:', error);
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`下载书籍失败: ${response.status} ${response.statusText}`);
+      }
+      return await response.arrayBuffer();
     }
-
-    return await response.arrayBuffer();
   }
 
   /**
@@ -157,15 +183,15 @@ export class SoNovelService {
    */
   async checkHealth(): Promise<boolean> {
     try {
-      // 直接请求根路径，只要能收到响应就说明服务可用
-      const response = await fetch(`${this.baseUrl}/`, {
+      // 使用 requestUrl 检查服务状态
+      await requestUrl({ 
+        url: `${this.baseUrl}/`,
         method: 'GET',
-        signal: AbortSignal.timeout(5000)
+        throw: false
       });
-      // 任何 HTTP 响应都说明服务可达（包括 404）
       return true;
     } catch {
-      // 网络错误、超时、CORS 错误等
+      // 网络错误、超时等
       return false;
     }
   }

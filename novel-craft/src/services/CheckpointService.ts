@@ -126,7 +126,7 @@ export class CheckpointService {
     const checkpoint = await this.getCheckpoint(bookTitle, notesPath);
     
     if (!checkpoint) {
-      console.warn('No checkpoint found to update');
+      // 断点可能尚未创建或已被删除，这是正常情况，静默处理
       return;
     }
 
@@ -164,7 +164,7 @@ export class CheckpointService {
     const checkpoint = await this.getCheckpoint(bookTitle, notesPath);
     
     if (!checkpoint) {
-      console.warn('No checkpoint found to update current stage');
+      // 断点可能尚未创建或已被删除，这是正常情况，静默处理
       return;
     }
 
@@ -305,7 +305,15 @@ export class CheckpointService {
     if (existingFile && existingFile instanceof TFile) {
       await this.app.vault.modify(existingFile, content);
     } else {
-      await this.app.vault.create(checkpointPath, content);
+      try {
+        await this.app.vault.create(checkpointPath, content);
+      } catch (e) {
+        // 文件可能已存在，尝试修改
+        const file = this.app.vault.getAbstractFileByPath(checkpointPath);
+        if (file instanceof TFile) {
+          await this.app.vault.modify(file, content);
+        }
+      }
     }
   }
 
@@ -317,7 +325,11 @@ export class CheckpointService {
   private async ensureFolderExists(folderPath: string): Promise<void> {
     const folder = this.app.vault.getAbstractFileByPath(folderPath);
     if (!folder) {
-      await this.app.vault.createFolder(folderPath);
+      try {
+        await this.app.vault.createFolder(folderPath);
+      } catch (e) {
+        // 忽略文件夹已存在错误
+      }
     }
   }
 
