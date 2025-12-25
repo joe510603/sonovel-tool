@@ -1,0 +1,10 @@
+{
+  "id": "novel-craft",
+  "name": "NovelCraft",
+  "version": "1.3.3",
+  "minAppVersion": "1.0.0",
+  "description": "网络小说写作学习助手 - 从素材获取到深度拆书分析的一站式解决方案",
+  "author": "NovelCraft",
+  "authorUrl": "",
+  "isDesktopOnly": false
+}
