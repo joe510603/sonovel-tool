@@ -24,3 +24,9 @@ export {
   createLoadingContainer
 } from './NotificationUtils';
 export type { NotificationType, NotificationConfig, AsyncOperationConfig } from './NotificationUtils';
+
+// 故事单元相关 UI 组件
+export { StoryUnitToolbar } from './StoryUnitToolbar';
+export type { ChapterMark, StoryUnitToolbarConfig } from './StoryUnitToolbar';
+export { StoryUnitPanel, StoryUnitEditModal, ConfirmModal } from './StoryUnitPanel';
+export type { StoryUnitPanelConfig } from './StoryUnitPanel';

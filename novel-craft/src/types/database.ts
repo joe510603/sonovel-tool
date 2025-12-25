@@ -418,3 +418,50 @@ export interface DatabaseMigration {
    */
   migrate(db: IDBDatabase, transaction: IDBTransaction): Promise<void>;
 }
+
+
+// ============ Frontmatter 类型 ============
+
+/**
+ * 章节 Frontmatter 数据结构
+ * 用于 MD 文件的元数据管理
+ */
+export interface ChapterFrontmatter {
+  /** 书籍ID */
+  bookId: string;
+  /** 章节ID */
+  chapterId: string;
+  /** 章节序号 */
+  chapterNum: number;
+  /** 章节标题 */
+  title: string;
+  /** 字数 */
+  wordCount: number;
+  /** 阅读状态 */
+  readStatus: 'unread' | 'reading' | 'finished';
+  /** AI 摘要 */
+  aiSummary?: string;
+  /** AI 关键事件 */
+  aiKeyEvents?: string[];
+  /** 阅读时间 */
+  readAt?: string;
+}
+
+// ============ 数据库文件路径常量 ============
+
+/**
+ * 数据库文件名常量
+ * 用于书库管理和阅读进度功能
+ */
+export const DATABASE_FILES = {
+  /** 书籍元数据文件 */
+  BOOK_META: '_book_meta.md',
+  /** 人物表文件 */
+  CHARACTERS: '_characters.md',
+  /** 故事单元表文件 */
+  STORY_UNITS: '_story_units.md',
+  /** 事件表文件 */
+  EVENTS: '_events.md',
+  /** Canvas 文件夹 */
+  CANVAS_FOLDER: '_canvas',
+} as const;

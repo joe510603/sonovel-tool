@@ -1,4 +1,4 @@
-import { Plugin, TFile, TFolder } from 'obsidian';
+import { Plugin, TFile, TFolder, MarkdownView, normalizePath } from 'obsidian';
 import { NovelCraftSettings, DEFAULT_SETTINGS, AnalysisResult, ParsedBook, TokenUsageRecord, TokenUsage } from './src/types';
 import { NovelCraftSettingTab } from './src/ui/SettingTab';
 import { SearchModal } from './src/ui/SearchModal';
@@ -7,6 +7,8 @@ import { AnalysisView, ANALYSIS_VIEW_TYPE } from './src/ui/AnalysisView';
 import { ChatView, CHAT_VIEW_TYPE } from './src/ui/ChatView';
 import { ChatPanel } from './src/ui/ChatPanel';
 import { MainPanel, MAIN_PANEL_VIEW_TYPE } from './src/ui/MainPanel';
+import { StoryUnitView, STORY_UNIT_VIEW_TYPE } from './src/ui/StoryUnitView';
+import { StoryUnitToolbar } from './src/ui/StoryUnitToolbar';
 import { 
   showSuccess, 
   showWarning, 
@@ -18,7 +20,11 @@ import { LLMService } from './src/services/LLMService';
 import { SoNovelService } from './src/services/SoNovelService';
 import { NoteGenerator } from './src/services/NoteGenerator';
 import { ConversationManager } from './src/services/ConversationManager';
+import { LibraryService } from './src/services/LibraryService';
+import { ReadingProgressService } from './src/services/ReadingProgressService';
+import { EpubConverterService } from './src/services/EpubConverterService';
 import { isSupportedDocument, getSupportedExtensions } from './src/core/ParserFactory';
+import { databaseService } from './src/services/DatabaseService';
 
 /**
  * NovelCraft Plugin - 网络小说拆书分析插件
@@ -38,6 +44,12 @@ export default class NovelCraftPlugin extends Plugin {
   llmService: LLMService;
   soNovelService: SoNovelService;
   conversationManager: ConversationManager;
+  libraryService: LibraryService;
+  readingProgressService: ReadingProgressService;
+  epubConverterService: EpubConverterService;
+  
+  // 故事单元工具栏
+  storyUnitToolbar: StoryUnitToolbar;
   
   // 存储最近的分析结果，用于打开对话
   private lastAnalysisResult: AnalysisResult | null = null;
@@ -61,15 +73,20 @@ export default class NovelCraftPlugin extends Plugin {
       // 注册侧边栏视图
       this.registerView(
         MAIN_PANEL_VIEW_TYPE,
-        (leaf) => new MainPanel(
-          leaf,
-          this.settings,
-          this.soNovelService,
-          this.llmService,
-          (path) => this.openAnalysisView(path),
-          () => this.openChatPanel(),
-          () => this.lastAnalysisResult !== null
-        )
+        (leaf) => {
+          const panel = new MainPanel(
+            leaf,
+            this.settings,
+            this.soNovelService,
+            this.llmService,
+            (path) => this.openAnalysisView(path),
+            () => this.openChatPanel(),
+            () => this.lastAnalysisResult !== null
+          );
+          panel.setEpubConverterService(this.epubConverterService);
+          panel.setLibraryService(this.libraryService);
+          return panel;
+        }
       );
       
       // 注册分析视图
@@ -82,6 +99,12 @@ export default class NovelCraftPlugin extends Plugin {
       this.registerView(
         CHAT_VIEW_TYPE,
         (leaf) => new ChatView(leaf, this.settings, this.llmService)
+      );
+      
+      // 注册故事单元视图
+      this.registerView(
+        STORY_UNIT_VIEW_TYPE,
+        (leaf) => new StoryUnitView(leaf)
       );
       
       // 注册命令
@@ -143,8 +166,97 @@ export default class NovelCraftPlugin extends Plugin {
     // 初始化对话管理器
     this.conversationManager = new ConversationManager(this.app, this.llmService);
     
+    // 初始化书库服务
+    const outputPath = (this.settings as any).epubConversion?.outputPath || 'NovelCraft/books';
+    this.libraryService = new LibraryService(this.app, outputPath);
+    
+    // 初始化阅读进度服务
+    this.readingProgressService = new ReadingProgressService(this.app, this.libraryService, outputPath);
+    this.readingProgressService.startWatching();
+    
+    // 初始化 EPUB 转换服务（传入 LibraryService）
+    this.epubConverterService = new EpubConverterService(this.app, undefined, this.libraryService);
+    
+    // 初始化故事单元工具栏
+    this.storyUnitToolbar = new StoryUnitToolbar(this.app, {
+      getBookIdFromFile: async (filePath: string) => {
+        return this.getBookIdFromFile(filePath);
+      }
+    });
+    this.storyUnitToolbar.registerEditorExtension();
+    
+    // 扫描现有书籍
+    this.scanExistingBooks();
+    
     // 检查 SoNovel 服务状态（非阻塞）
     this.checkSoNovelServiceHealth();
+  }
+
+  /**
+   * 扫描现有书籍并导入到书库
+   */
+  private async scanExistingBooks(): Promise<void> {
+    try {
+      const count = await this.libraryService.scanAndImportExistingBooks();
+      if (count > 0) {
+        console.log(`NovelCraft: 已导入 ${count} 本现有书籍`);
+      }
+    } catch (error) {
+      console.warn('NovelCraft: 扫描现有书籍失败', error);
+    }
+  }
+
+  /**
+   * 从文件路径获取书籍ID
+   */
+  private async getBookIdFromFile(filePath: string): Promise<string | null> {
+    // 规范化文件路径
+    const normalizedFilePath = normalizePath(filePath);
+    const parts = normalizedFilePath.split('/');
+    const booksIndex = parts.findIndex(p => p === 'books');
+    if (booksIndex === -1 || booksIndex >= parts.length - 2) {
+      return null;
+    }
+    
+    const bookFolderName = parts[booksIndex + 1];
+    const bookFolderPath = normalizePath(parts.slice(0, booksIndex + 2).join('/'));
+    
+    const books = await databaseService.books.getAll();
+    const book = books.find(b => {
+      // 规范化数据库中的路径进行比较
+      const dbPath = normalizePath(b.file_path);
+      return dbPath === bookFolderPath || b.title === bookFolderName;
+    });
+    
+    return book?.id || null;
+  }
+
+  /**
+   * 检查是否是 NovelCraft 章节文件
+   */
+  private isNovelCraftChapter(path: string): boolean {
+    const outputPath = (this.settings as any).epubConversion?.outputPath || 'NovelCraft/books';
+    const isInBookPath = path.includes(outputPath) || 
+                         path.includes('NovelCraft/books/') ||
+                         path.includes('novelcraft/books/');
+    return isInBookPath && path.endsWith('.md') && !path.includes('_index') && !path.startsWith('_');
+  }
+
+  /**
+   * 从路径提取书籍路径
+   */
+  private getBookPathFromFile(filePath: string): string | null {
+    const patterns = [
+      /(.*NovelCraft\/books\/[^/]+)\//i,
+      /(.*novelcraft\/books\/[^/]+)\//i,
+      /(.*books\/[^/]+)\//i
+    ];
+    
+    for (const pattern of patterns) {
+      const match = filePath.match(pattern);
+      if (match) return match[1];
+    }
+    return null;
   }
 
   /**
@@ -202,6 +314,14 @@ export default class NovelCraftPlugin extends Plugin {
     if (this.conversationManager) {
       this.conversationManager.clear();
     }
+    
+    if (this.readingProgressService) {
+      this.readingProgressService.destroy();
+    }
+    
+    if (this.storyUnitToolbar) {
+      this.storyUnitToolbar.destroy();
+    }
   }
 
   /**
@@ -248,10 +368,81 @@ export default class NovelCraftPlugin extends Plugin {
       callback: () => this.openChatPanel()
     });
 
+    // 注册命令: 打开故事单元管理面板
+    this.addCommand({
+      id: 'open-story-unit-panel',
+      name: '打开故事单元管理',
+      checkCallback: (checking: boolean) => {
+        const activeFile = this.app.workspace.getActiveFile();
+        const isChapter = activeFile && this.isNovelCraftChapter(activeFile.path);
+        
+        if (checking) {
+          return !!isChapter;
+        }
+        
+        if (activeFile && isChapter) {
+          this.openStoryUnitPanel(activeFile.path);
+        }
+        return true;
+      }
+    });
+
+    // 注册命令: 刷新书库
+    this.addCommand({
+      id: 'refresh-library',
+      name: '刷新书库',
+      callback: async () => {
+        try {
+          await this.libraryService.updateLibraryIndex();
+          showSuccess('书库已刷新');
+        } catch (error) {
+          showError('刷新书库失败', error instanceof Error ? error.message : '未知错误');
+        }
+      }
+    });
+
     // 添加 ribbon 图标
     this.addRibbonIcon('book-open', 'NovelCraft', () => {
       this.activateMainPanel();
     });
+  }
+
+  /**
+   * 打开故事单元管理面板（在右侧边栏）
+   */
+  private async openStoryUnitPanel(filePath: string): Promise<void> {
+    const bookId = await this.getBookIdFromFile(filePath);
+    if (!bookId) {
+      showWarning('无法识别书籍');
+      return;
+    }
+    
+    const { workspace } = this.app;
+    
+    // 查找或创建故事单元视图
+    let leaf = workspace.getLeavesOfType(STORY_UNIT_VIEW_TYPE)[0];
+    
+    if (!leaf) {
+      // 在右侧创建新的叶子
+      const rightLeaf = workspace.getRightLeaf(false);
+      if (rightLeaf) {
+        await rightLeaf.setViewState({
+          type: STORY_UNIT_VIEW_TYPE,
+          active: true
+        });
+        leaf = rightLeaf;
+      }
+    }
+    
+    if (leaf) {
+      workspace.revealLeaf(leaf);
+      
+      // 设置当前书籍
+      const view = leaf.view as StoryUnitView;
+      if (view && typeof view.setBook === 'function') {
+        await view.setBook(bookId);
+      }
+    }
   }
 
   /**
@@ -312,6 +503,17 @@ export default class NovelCraftPlugin extends Plugin {
     
     if (this.soNovelService) {
       this.soNovelService.setBaseUrl(this.settings.sonovelUrl);
+    }
+    
+    // 更新书库和阅读进度服务的输出路径
+    const outputPath = (this.settings as any).epubConversion?.outputPath;
+    if (outputPath) {
+      if (this.libraryService) {
+        this.libraryService.setOutputPath(outputPath);
+      }
+      if (this.readingProgressService) {
+        this.readingProgressService.setOutputPath(outputPath);
+      }
     }
   }
 

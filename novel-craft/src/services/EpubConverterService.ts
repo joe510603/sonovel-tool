@@ -1,7 +1,9 @@
 import { App, TFile, TFolder, normalizePath } from 'obsidian';
 import { EpubParser } from '../core/EpubParser';
 import { TimelineDatabaseService } from './DatabaseService';
-import { Chapter, ParsedBook } from '../types';
+import { LibraryService } from './LibraryService';
+import { Chapter, ParsedBook, BookEntry } from '../types';
+import { DATABASE_FILES } from '../types/database';
 
 /**
  * EPUB 转换选项
@@ -83,14 +85,16 @@ export class EpubConverterService {
   private app: App;
   private epubParser: EpubParser;
   private databaseService: TimelineDatabaseService | null = null;
+  private libraryService: LibraryService | null = null;
 
   /** 文件名中需要清理的非法字符 */
   private static readonly ILLEGAL_CHARS = /[\/\\:*?"<>|]/g;
 
-  constructor(app: App, databaseService?: TimelineDatabaseService) {
+  constructor(app: App, databaseService?: TimelineDatabaseService, libraryService?: LibraryService) {
     this.app = app;
     this.epubParser = new EpubParser();
     this.databaseService = databaseService || null;
+    this.libraryService = libraryService || null;
   }
 
   /**
@@ -101,18 +105,28 @@ export class EpubConverterService {
     this.databaseService = databaseService;
   }
 
+  /**
+   * 设置 LibraryService 实例
+   * 用于在转换完成后自动更新书库
+   */
+  setLibraryService(libraryService: LibraryService): void {
+    this.libraryService = libraryService;
+  }
+
 
   /**
    * 转换单个 EPUB 文件为 Markdown
    * @param epubPath EPUB 文件路径
    * @param options 转换选项
    * @param onProgress 进度回调
+   * @param skipLibraryUpdate 是否跳过书库更新（用于批量转换）
    * @returns 转换结果
    */
   async convert(
     epubPath: string,
     options: Partial<ConversionOptions> = {},
-    onProgress?: (progress: number, message: string) => void
+    onProgress?: (progress: number, message: string) => void,
+    skipLibraryUpdate: boolean = false
   ): Promise<ConversionResult> {
     const fullOptions: ConversionOptions = {
       ...DEFAULT_EPUB_CONVERSION_SETTINGS,
@@ -190,7 +204,40 @@ export class EpubConverterService {
       result.totalWords = parsedBook.totalWordCount;
       result.success = true;
 
-      // 5. 保存到数据库
+      // 5. 更新书库（使用 LibraryService）
+      onProgress?.(90, '正在更新书库...');
+      if (this.libraryService) {
+        try {
+          const bookEntry: BookEntry = {
+            title: parsedBook.metadata.title,
+            author: parsedBook.metadata.author,
+            folderPath: bookFolderPath,
+            totalChapters: parsedBook.chapters.length,
+            currentChapter: 0,
+            readingStatus: 'unread',
+            convertedAt: new Date().toISOString().split('T')[0],
+            totalWords: parsedBook.totalWordCount
+          };
+          
+          await this.libraryService.addBook(bookEntry);
+          
+          // 单个转换时更新书库总览，批量转换时跳过（由批量方法统一更新）
+          if (!skipLibraryUpdate) {
+            await this.libraryService.updateLibraryIndex();
+          }
+        } catch (libError) {
+          result.errors.push(`书库更新警告: ${libError instanceof Error ? libError.message : String(libError)}`);
+        }
+      } else {
+        // 如果没有 LibraryService，使用内置方法更新书库总览
+        try {
+          await this.updateLibraryIndex(fullOptions.outputPath);
+        } catch (indexError) {
+          result.errors.push(`书库总览更新警告: ${indexError instanceof Error ? indexError.message : String(indexError)}`);
+        }
+      }
+
+      // 6. 保存到数据库
       onProgress?.(95, '正在保存到数据库...');
       if (this.databaseService) {
         try {
@@ -210,13 +257,12 @@ export class EpubConverterService {
         }
       }
 
-      // 6. 更新书库总览
-      onProgress?.(98, '正在更新书库总览...');
+      // 7. 创建书籍数据库元文件（_book_meta.md）
+      onProgress?.(98, '正在创建书籍元数据...');
       try {
-        await this.updateLibraryIndex(fullOptions.outputPath);
-      } catch (indexError) {
-        // 书库总览更新失败不影响转换结果，只记录警告
-        result.errors.push(`书库总览更新警告: ${indexError instanceof Error ? indexError.message : String(indexError)}`);
+        await this.createBookMetaFile(bookFolderPath, parsedBook);
+      } catch (metaError) {
+        result.errors.push(`元数据创建警告: ${metaError instanceof Error ? metaError.message : String(metaError)}`);
       }
 
       onProgress?.(100, '转换完成！');
@@ -226,6 +272,41 @@ export class EpubConverterService {
     }
 
     return result;
+  }
+
+  /**
+   * 创建书籍元数据文件（_book_meta.md）
+   * 用于支持新的数据库结构
+   */
+  private async createBookMetaFile(bookFolderPath: string, book: ParsedBook): Promise<void> {
+    const metaFilePath = normalizePath(`${bookFolderPath}/${DATABASE_FILES.BOOK_META}`);
+    
+    // 检查文件是否已存在
+    const existingFile = this.app.vault.getAbstractFileByPath(metaFilePath);
+    if (existingFile instanceof TFile) {
+      return; // 文件已存在，不覆盖
+    }
+
+    const now = new Date().toISOString();
+    const content = `---
+title: "${book.metadata.title}"
+author: "${book.metadata.author}"
+description: "${book.metadata.description || ''}"
+total_chapters: ${book.chapters.length}
+total_words: ${book.totalWordCount}
+current_chapter: 0
+reading_status: "unread"
+converted_at: "${now.split('T')[0]}"
+created_at: "${now}"
+updated_at: "${now}"
+---
+
+# ${book.metadata.title}
+
+书籍元数据文件，用于存储书籍的基本信息和阅读状态。
+`;
+
+    await this.app.vault.create(metaFilePath, content);
   }
 
   /**
@@ -267,7 +348,8 @@ export class EpubConverterService {
           continue;
         }
 
-        const result = await this.convert(epubPath, options);
+        // 批量转换时跳过单个书库更新
+        const result = await this.convert(epubPath, options, undefined, true);
         
         if (result.success) {
           batchResult.successCount++;
@@ -289,10 +371,14 @@ export class EpubConverterService {
       }
     }
 
-    // 批量转换完成后更新书库总览
+    // 批量转换完成后统一更新书库总览
     if (batchResult.successCount > 0) {
       try {
-        await this.updateLibraryIndex(options.outputPath);
+        if (this.libraryService) {
+          await this.libraryService.updateLibraryIndex();
+        } else {
+          await this.updateLibraryIndex(options.outputPath);
+        }
       } catch {
         // 忽略书库总览更新错误
       }

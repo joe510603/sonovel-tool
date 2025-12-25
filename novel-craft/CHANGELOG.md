@@ -5,6 +5,58 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.4.1] - 2024-12-25
+
+### 修复
+
+#### 书库总览与阅读进度
+- **书库总览文档修复**：修复导入书籍后书库总览文档未正确更新的问题
+  - `EpubConverterService` 集成 `LibraryService`，导入后自动更新书库
+  - 批量转换完成后统一更新书库总览，避免重复更新
+- **阅读状态统计修复**：修复阅读状态统计不准确的问题
+  - `LibraryService.getAllBooks()` 支持从多个数据源读取（`_book_meta.md`、管理文件、JSON）
+  - 增强数据同步机制，确保统计数据准确
+- **最近添加书籍列表修复**：修复最近添加书籍列表显示异常
+- **书籍分组显示优化**：优化书籍按阅读状态分组的显示逻辑
+
+#### 阅读进度记录
+- **阅读进度保存修复**：修复阅读进度未正确保存的问题
+  - 新增防抖机制（500ms），避免快速切换章节时频繁更新
+  - `ReadingProgressService` 使用 `debouncedUpdateProgress()` 方法
+- **继续阅读提示修复**：修复继续阅读提示显示异常
+  - 修复 `getContinueReadingLink()` 边界情况处理（章节0、已读完状态）
+  - 修复 `generateBookManagerMarkdown()` 继续阅读链接逻辑
+- **阅读进度同步优化**：优化阅读进度同步机制
+  - 更新进度时同步更新 JSON、`_book_meta.md` 和管理文件 frontmatter
+
+#### Frontmatter 格式修复
+- **修复 frontmatter 双重引号问题**：修复管理文件中 `readingStatus` 和 `lastReadAt` 出现多余转义引号的问题
+  - 移除 `updateManagerFileFrontmatter()` 中手动添加的引号
+  - 由 `FrontmatterUtils.formatYamlValue()` 自动处理引号
+
+### 新增
+
+#### 故事单元管理
+- **故事单元编辑器工具栏**：在章节编辑器顶部显示故事单元操作工具栏
+  - 标记起始/结束位置
+  - 快速创建故事单元
+  - 清除标记
+  - 打开管理面板
+- **故事单元侧边栏视图**：新增 `StoryUnitView` 侧边栏视图
+  - 替代原有的弹窗模式，在右侧固定面板中显示
+  - 按轨道分组显示故事单元
+  - 支持新建、编辑、删除故事单元
+  - 显示统计信息和空状态提示
+
+### 变更
+- `EpubConverterService.ts` 新增 `setLibraryService()` 方法和 `createBookMetaFile()` 方法
+- `LibraryService.ts` 新增 `readBookFromManagerFile()` 和 `updateManagerFileFrontmatter()` 方法
+- `ReadingProgressService.ts` 新增防抖逻辑（`debouncedUpdateProgress()`）
+- `StoryUnitToolbar.ts` 修复工具栏重复显示问题，改用侧边栏视图
+- `StoryUnitView.ts` 新增故事单元管理侧边栏视图
+- `main.ts` 注册 `StoryUnitView` 视图类型
+- `styles.css` 新增故事单元工具栏和侧边栏视图样式
+
 ## [1.4.0] - 2024-12-24
 
 ### 新增

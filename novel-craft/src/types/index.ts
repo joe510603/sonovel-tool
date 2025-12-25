@@ -292,6 +292,95 @@ export interface TokenStats {
   byBook: Record<string, TokenUsage>;
 }
 
+// ============ EPUB Conversion Types ============
+
+/**
+ * EPUB 转换设置
+ */
+export interface EpubConversionSettings {
+  /** 输出路径 (默认: "NovelCraft/books") */
+  outputPath: string;
+  /** 是否合并为单文件 (默认: false) */
+  mergeToSingleFile: boolean;
+  /** 是否保留 HTML 标签 (默认: false) */
+  preserveHtmlTags: boolean;
+  /** 是否包含章节导航 (默认: true) */
+  includeNavigation: boolean;
+  /** 是否自动链接分析笔记 (默认: true) */
+  autoLinkAnalysis: boolean;
+}
+
+/**
+ * 默认 EPUB 转换设置
+ */
+export const DEFAULT_EPUB_CONVERSION_SETTINGS: EpubConversionSettings = {
+  outputPath: 'NovelCraft/books',
+  mergeToSingleFile: false,
+  preserveHtmlTags: false,
+  includeNavigation: true,
+  autoLinkAnalysis: true
+};
+
+// ============ Library Types ============
+
+/**
+ * 阅读进度
+ */
+export interface ReadingProgress {
+  /** 书籍标题 */
+  bookTitle: string;
+  /** 当前章节 (1-based) */
+  currentChapter: number;
+  /** 总章节数 */
+  totalChapters: number;
+  /** 上次阅读时间 (ISO 8601) */
+  lastReadAt: string;
+  /** 阅读状态 */
+  readingStatus: 'unread' | 'reading' | 'finished';
+  /** 书签章节列表 */
+  bookmarks: number[];
+}
+
+/**
+ * 书籍条目 (用于书库管理)
+ */
+export interface BookEntry {
+  /** 书籍标题 */
+  title: string;
+  /** 作者 */
+  author: string;
+  /** 书籍文件夹路径 */
+  folderPath: string;
+  /** 总章节数 */
+  totalChapters: number;
+  /** 当前阅读章节 */
+  currentChapter: number;
+  /** 阅读状态 */
+  readingStatus: 'unread' | 'reading' | 'finished';
+  /** 转换时间 (ISO 8601) */
+  convertedAt: string;
+  /** 上次阅读时间 (ISO 8601) */
+  lastReadAt?: string;
+  /** 总字数 */
+  totalWords: number;
+}
+
+/**
+ * 书库统计信息
+ */
+export interface LibraryStats {
+  /** 总书籍数 */
+  totalBooks: number;
+  /** 已读完书籍数 */
+  finishedBooks: number;
+  /** 阅读中书籍数 */
+  readingBooks: number;
+  /** 未开始书籍数 */
+  unreadBooks: number;
+  /** 总字数 */
+  totalWords: number;
+}
+
 // ============ Settings Types ============
 
 export interface NovelCraftSettings {

@@ -3,6 +3,7 @@ import { NovelCraftSettings, BookSearchResult, LocalBook } from '../types';
 import { SoNovelService } from '../services/SoNovelService';
 import { LLMService } from '../services/LLMService';
 import { EpubConverterService, ConversionResult, DEFAULT_EPUB_CONVERSION_SETTINGS } from '../services/EpubConverterService';
+import { LibraryService } from '../services/LibraryService';
 import { TimelineDatabaseService } from '../services/DatabaseService';
 import { showError, showSuccess, showWarning, showInfo } from './NotificationUtils';
 import { getSupportedExtensions } from '../core/ParserFactory';
@@ -18,6 +19,7 @@ export class MainPanel extends ItemView {
   private soNovelService: SoNovelService;
   private llmService: LLMService;
   private epubConverterService: EpubConverterService;
+  private libraryService: LibraryService | null = null;
   private databaseService: TimelineDatabaseService;
   private onAnalyzeBook: (path: string) => void;
   private onOpenChat: () => void;
@@ -49,7 +51,9 @@ export class MainPanel extends ItemView {
     
     // 初始化服务
     this.databaseService = new TimelineDatabaseService();
-    this.epubConverterService = new EpubConverterService(this.app, this.databaseService);
+    // 注意：EpubConverterService 会在 setEpubConverterService 中被替换为主插件的实例
+    // 这里创建一个临时实例作为后备
+    this.epubConverterService = new EpubConverterService(this.app, this.databaseService, undefined);
   }
 
   getViewType(): string {
@@ -62,6 +66,24 @@ export class MainPanel extends ItemView {
 
   getIcon(): string {
     return 'book-open';
+  }
+
+  /**
+   * 设置 EpubConverterService 实例
+   */
+  setEpubConverterService(service: EpubConverterService): void {
+    this.epubConverterService = service;
+  }
+
+  /**
+   * 设置 LibraryService 实例
+   */
+  setLibraryService(service: LibraryService): void {
+    this.libraryService = service;
+    // 同时更新 EpubConverterService 的 LibraryService
+    if (this.epubConverterService) {
+      this.epubConverterService.setLibraryService(service);
+    }
   }
 
   async onOpen(): Promise<void> {

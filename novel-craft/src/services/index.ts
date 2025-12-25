@@ -39,3 +39,13 @@ export type {
   ConversionResult, 
   BatchConversionResult 
 } from './EpubConverterService';
+
+// 书库管理和阅读进度服务
+export { LibraryService } from './LibraryService';
+export { ReadingProgressService } from './ReadingProgressService';
+
+// 故事单元和轨道服务
+export { StoryUnitService } from './StoryUnitService';
+export type { ChapterInfo, StoryUnitCreateConfig, StoryUnitUpdateConfig } from './StoryUnitService';
+export { TrackService } from './TrackService';
+export type { TrackCreateConfig, TrackUpdateConfig } from './TrackService';
