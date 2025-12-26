@@ -46,6 +46,7 @@ describe('NovelCraft Types', () => {
             sonovelUrl: fc.webUrl(),
             downloadPath: fc.string({ minLength: 1 }),
             notesPath: fc.string({ minLength: 1 }),
+            timelineExportPath: fc.string({ minLength: 1 }),
             defaultAnalysisMode: fc.constantFrom<AnalysisMode>('quick', 'standard', 'deep'),
             defaultNovelType: fc.constantFrom<NovelType>('urban', 'alternate-history', 'fantasy', 'custom'),
             llmProviders: fc.array(

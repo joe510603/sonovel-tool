@@ -9,8 +9,10 @@ import { App, Modal, Setting, DropdownComponent, TextComponent } from 'obsidian'
 import { StoryUnitService, ChapterInfo, StoryUnitCreateConfig } from '../services/StoryUnitService';
 import { TrackService } from '../services/TrackService';
 import { databaseService } from '../services/DatabaseService';
+import { LLMService } from '../services/LLMService';
 import { StoryUnitRecord, TrackRecord, CharacterRecord } from '../types/database';
 import { showSuccess, showError, showWarning } from './NotificationUtils';
+import { AIAnalysisPanel } from './AIAnalysisPanel';
 
 /**
  * 故事单元面板配置
@@ -18,6 +20,8 @@ import { showSuccess, showError, showWarning } from './NotificationUtils';
 export interface StoryUnitPanelConfig {
   /** 书籍ID */
   bookId: string;
+  /** LLM服务（用于AI分析） */
+  llmService?: LLMService;
   /** 创建回调 */
   onUnitCreated?: (unit: StoryUnitRecord) => void;
   /** 更新回调 */
@@ -193,6 +197,16 @@ export class StoryUnitPanel extends Modal {
     // 操作按钮
     const actions = item.createDiv({ cls: 'nc-su-unit-actions' });
     
+    // AI分析按钮
+    if (this.config.llmService) {
+      const aiBtn = actions.createEl('button', { text: '🤖', cls: 'nc-su-action-btn nc-su-action-ai' });
+      aiBtn.title = 'AI分析';
+      aiBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.openAIAnalysisPanel(unit);
+      });
+    }
+    
     const editBtn = actions.createEl('button', { text: '✏️', cls: 'nc-su-action-btn' });
     editBtn.title = '编辑';
     editBtn.addEventListener('click', (e) => {
@@ -276,6 +290,22 @@ export class StoryUnitPanel extends Modal {
       }
     });
     modal.open();
+  }
+
+  /**
+   * 打开AI分析面板
+   */
+  private openAIAnalysisPanel(unit: StoryUnitRecord): void {
+    if (!this.config.llmService) {
+      showWarning('请先配置 LLM 服务');
+      return;
+    }
+    const panel = new AIAnalysisPanel(this.app, {
+      storyUnit: unit,
+      llmService: this.config.llmService,
+      onAnalysisComplete: () => this.refresh()
+    });
+    panel.open();
   }
 }
 

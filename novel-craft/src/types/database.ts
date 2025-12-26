@@ -117,6 +117,14 @@ export interface StoryUnitRecord {
   is_past_event: boolean;
   /** 涉及人物ID列表（JSON字符串） */
   character_ids: string;
+  /** 段落级精细标记 - 起始段落位置 (1-based) */
+  paragraph_start?: number;
+  /** 段落级精细标记 - 结束段落位置 (1-based) */
+  paragraph_end?: number;
+  /** 段落级精细标记 - 文本锚点（选中文本的前30字符，用于精确定位） */
+  text_anchor?: string;
+  /** 用户备注 */
+  notes?: string;
   /** 创建时间 */
   create_time: number;
   /** 更新时间 */

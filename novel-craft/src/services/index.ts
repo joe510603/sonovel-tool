@@ -49,3 +49,37 @@ export { StoryUnitService } from './StoryUnitService';
 export type { ChapterInfo, StoryUnitCreateConfig, StoryUnitUpdateConfig } from './StoryUnitService';
 export { TrackService } from './TrackService';
 export type { TrackCreateConfig, TrackUpdateConfig } from './TrackService';
+
+// 故事单元AI分析服务
+export { StoryUnitAnalysisService } from './StoryUnitAnalysisService';
+export type { 
+  AnalysisProgressCallback, 
+  StreamCallback, 
+  AnalysisResultItem, 
+  StoryUnitAnalysisResult 
+} from './StoryUnitAnalysisService';
+
+// 分析模板系统
+export {
+  SEVEN_STEP_STORY_TEMPLATE,
+  THREE_ACT_TEMPLATE,
+  WEB_NOVEL_TEMPLATE,
+  BUILTIN_TEMPLATES,
+  getAllTemplates,
+  getTemplateById,
+  addCustomTemplate,
+  updateCustomTemplate,
+  deleteCustomTemplate,
+  loadCustomTemplates,
+  getCustomTemplates
+} from './AnalysisTemplates';
+export type { AnalysisTemplate, AnalysisTemplateStep } from './AnalysisTemplates';
+
+// 关联关系服务
+export { RelationService, RELATION_TYPE_NAMES } from './RelationService';
+export type { 
+  RelationCreateConfig, 
+  RelationUpdateConfig, 
+  UnitPosition, 
+  RelationLineInfo 
+} from './RelationService';

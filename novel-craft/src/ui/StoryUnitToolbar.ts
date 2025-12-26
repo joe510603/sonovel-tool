@@ -14,10 +14,25 @@
 import { App, MarkdownView, TFile, Modal, Setting, DropdownComponent, TextComponent, normalizePath } from 'obsidian';
 import { StoryUnitService, StoryUnitCreateConfig, ChapterInfo } from '../services/StoryUnitService';
 import { TrackService } from '../services/TrackService';
+import { LLMService } from '../services/LLMService';
 import { databaseService } from '../services/DatabaseService';
 import { TrackRecord, CharacterRecord } from '../types/database';
 import { showSuccess, showError, showWarning, showInfo } from './NotificationUtils';
 import { StoryUnitView, STORY_UNIT_VIEW_TYPE } from './StoryUnitView';
+import { TimelineView, TIMELINE_VIEW_TYPE } from './TimelineView';
+
+/**
+ * 段落位置信息
+ * 用于段落级精细标记
+ */
+export interface ParagraphPosition {
+  /** 段落序号 (1-based) */
+  paragraphIndex: number;
+  /** 段落内偏移量 */
+  offset?: number;
+  /** 文本锚点（选中文本的前30字符） */
+  textAnchor?: string;
+}
 
 /**
  * 章节标记信息
@@ -31,6 +46,30 @@ export interface ChapterMark {
   chapterTitle: string;
   /** 书籍ID */
   bookId: string;
+  /** 段落位置（可选，用于段落级精细标记） */
+  paragraphPosition?: ParagraphPosition;
+}
+
+/**
+ * 标记组信息
+ * 支持多组标记并行进行（嵌套标记）
+ * 适用场景：主线故事中嵌套回忆、支线、闪回等
+ * 
+ * Requirements: 1.1, 1.2
+ */
+export interface MarkingGroup {
+  /** 标记组唯一ID */
+  id: string;
+  /** 标记组名称（用户可自定义） */
+  name: string;
+  /** 起始标记 */
+  startMark: ChapterMark | null;
+  /** 结束标记 */
+  endMark: ChapterMark | null;
+  /** 创建时间 */
+  createdAt: number;
+  /** 标记组颜色（用于UI区分） */
+  color: string;
 }
 
 /**
@@ -39,6 +78,29 @@ export interface ChapterMark {
 export interface StoryUnitToolbarConfig {
   /** 获取当前书籍ID的回调 */
   getBookIdFromFile?: (filePath: string) => Promise<string | null>;
+  /** LLM服务（用于AI分析） */
+  llmService?: LLMService;
+}
+
+/**
+ * 默认标记组颜色列表
+ */
+const MARKING_GROUP_COLORS = [
+  '#4a90d9', // 蓝色
+  '#50c878', // 绿色
+  '#daa520', // 金色
+  '#9370db', // 紫色
+  '#ff6b6b', // 红色
+  '#4ecdc4', // 青色
+  '#45b7d1', // 天蓝
+  '#f39c12', // 橙色
+];
+
+/**
+ * 生成唯一ID
+ */
+function generateId(): string {
+  return `mg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 }
 
 /**
@@ -50,19 +112,116 @@ class StoryUnitToolbar {
   private storyUnitService: StoryUnitService;
   private trackService: TrackService;
 
-  // 标记状态
-  private startMark: ChapterMark | null = null;
-  private endMark: ChapterMark | null = null;
+  // 标记组列表（支持多组并行标记）
+  private markingGroups: MarkingGroup[] = [];
+  // 当前活动的标记组ID
+  private activeGroupId: string | null = null;
   
   // 工具栏元素
   private toolbarEl: HTMLElement | null = null;
   private statusEl: HTMLElement | null = null;
+  private groupListEl: HTMLElement | null = null;
 
   constructor(app: App, config: StoryUnitToolbarConfig = {}) {
     this.app = app;
     this.config = config;
     this.storyUnitService = new StoryUnitService(app);
     this.trackService = new TrackService();
+  }
+
+  /**
+   * 获取或创建活动标记组
+   */
+  private getOrCreateActiveGroup(bookId: string): MarkingGroup {
+    // 如果有活动组，返回它
+    if (this.activeGroupId) {
+      const activeGroup = this.markingGroups.find(g => g.id === this.activeGroupId);
+      if (activeGroup) return activeGroup;
+    }
+    
+    // 如果没有任何标记组，创建一个默认组
+    if (this.markingGroups.length === 0) {
+      return this.createMarkingGroup('标记组 1');
+    }
+    
+    // 返回第一个标记组
+    this.activeGroupId = this.markingGroups[0].id;
+    return this.markingGroups[0];
+  }
+
+  /**
+   * 创建新的标记组
+   */
+  createMarkingGroup(name?: string): MarkingGroup {
+    const colorIndex = this.markingGroups.length % MARKING_GROUP_COLORS.length;
+    const groupName = name || `标记组 ${this.markingGroups.length + 1}`;
+    
+    const newGroup: MarkingGroup = {
+      id: generateId(),
+      name: groupName,
+      startMark: null,
+      endMark: null,
+      createdAt: Date.now(),
+      color: MARKING_GROUP_COLORS[colorIndex]
+    };
+    
+    this.markingGroups.push(newGroup);
+    this.activeGroupId = newGroup.id;
+    
+    return newGroup;
+  }
+
+  /**
+   * 删除标记组
+   */
+  deleteMarkingGroup(groupId: string): void {
+    const index = this.markingGroups.findIndex(g => g.id === groupId);
+    if (index === -1) return;
+    
+    this.markingGroups.splice(index, 1);
+    
+    // 如果删除的是活动组，切换到第一个组或清空
+    if (this.activeGroupId === groupId) {
+      this.activeGroupId = this.markingGroups.length > 0 ? this.markingGroups[0].id : null;
+    }
+    
+    this.updateStatusDisplay();
+  }
+
+  /**
+   * 设置活动标记组
+   */
+  setActiveGroup(groupId: string): void {
+    if (this.markingGroups.find(g => g.id === groupId)) {
+      this.activeGroupId = groupId;
+      this.updateStatusDisplay();
+    }
+  }
+
+  /**
+   * 重命名标记组
+   */
+  renameMarkingGroup(groupId: string, newName: string): void {
+    const group = this.markingGroups.find(g => g.id === groupId);
+    if (group) {
+      group.name = newName;
+      this.updateStatusDisplay();
+    }
+  }
+
+  /**
+   * 获取所有标记组
+   */
+  getMarkingGroups(): MarkingGroup[] {
+    return [...this.markingGroups];
+  }
+
+  /**
+   * 获取活动标记组
+   */
+  getActiveGroup(): MarkingGroup | null {
+    if (!this.activeGroupId) return null;
+    return this.markingGroups.find(g => g.id === this.activeGroupId) || null;
   }
 
   /**
@@ -130,6 +289,18 @@ class StoryUnitToolbar {
     
     const buttonGroup = toolbar.createDiv({ cls: 'nc-su-toolbar-buttons' });
     
+    // 新增标记组按钮
+    const addGroupBtn = buttonGroup.createEl('button', {
+      text: '➕ 新建标记组',
+      cls: 'nc-su-toolbar-btn',
+      attr: { title: '创建新的标记组，支持多组并行标记' }
+    });
+    addGroupBtn.addEventListener('click', () => {
+      this.createMarkingGroup();
+      this.updateStatusDisplay();
+      showInfo('已创建新的标记组');
+    });
+    
     const startBtn = buttonGroup.createEl('button', {
       text: '🏁 标记起始',
       cls: 'nc-su-toolbar-btn',
@@ -158,13 +329,25 @@ class StoryUnitToolbar {
     });
     manageBtn.addEventListener('click', () => this.openManagePanel(bookId));
     
+    // 时间线按钮
+    const timelineBtn = buttonGroup.createEl('button', {
+      text: '📊 时间线',
+      cls: 'nc-su-toolbar-btn',
+      attr: { title: '打开故事时间线视图' }
+    });
+    timelineBtn.addEventListener('click', () => this.openTimelineView(bookId));
+    
     const clearBtn = buttonGroup.createEl('button', {
       text: '🗑️ 清除标记',
       cls: 'nc-su-toolbar-btn nc-su-toolbar-btn-danger',
-      attr: { title: '清除所有标记' }
+      attr: { title: '清除当前标记组的标记' }
     });
-    clearBtn.addEventListener('click', () => this.clearMarks());
+    clearBtn.addEventListener('click', () => this.clearActiveGroupMarks());
     
+    // 标记组列表区域
+    this.groupListEl = toolbar.createDiv({ cls: 'nc-su-group-list' });
+    
+    // 状态显示区域
     this.statusEl = toolbar.createDiv({ cls: 'nc-su-toolbar-status' });
     this.updateStatusDisplay();
     
@@ -190,44 +373,411 @@ class StoryUnitToolbar {
    * 更新状态显示
    */
   private updateStatusDisplay(): void {
+    // 更新标记组列表
+    this.updateGroupList();
+    
+    // 更新当前活动组状态
     if (!this.statusEl) return;
     
     this.statusEl.empty();
     
-    if (this.startMark || this.endMark) {
+    const activeGroup = this.getActiveGroup();
+    
+    if (activeGroup && (activeGroup.startMark || activeGroup.endMark)) {
       const statusText = this.statusEl.createDiv({ cls: 'nc-su-status-text' });
       
-      if (this.startMark) {
+      // 显示当前活动组名称
+      const groupLabel = statusText.createSpan({ 
+        text: `[${activeGroup.name}] `,
+        cls: 'nc-su-status-group-label'
+      });
+      groupLabel.style.color = activeGroup.color;
+      
+      if (activeGroup.startMark) {
+        const startText = this.formatMarkPosition(activeGroup.startMark, '起始');
         statusText.createSpan({ 
-          text: `起始: 第${this.startMark.chapterIndex}章`,
+          text: startText,
           cls: 'nc-su-status-mark nc-su-status-start'
         });
       }
       
-      if (this.startMark && this.endMark) {
+      if (activeGroup.startMark && activeGroup.endMark) {
         statusText.createSpan({ text: ' → ', cls: 'nc-su-status-arrow' });
       }
       
-      if (this.endMark) {
+      if (activeGroup.endMark) {
+        const endText = this.formatMarkPosition(activeGroup.endMark, '结束');
         statusText.createSpan({ 
-          text: `结束: 第${this.endMark.chapterIndex}章`,
+          text: endText,
           cls: 'nc-su-status-mark nc-su-status-end'
         });
       }
       
-      if (this.startMark && this.endMark) {
-        const count = Math.abs(this.endMark.chapterIndex - this.startMark.chapterIndex) + 1;
+      if (activeGroup.startMark && activeGroup.endMark) {
+        const count = Math.abs(activeGroup.endMark.chapterIndex - activeGroup.startMark.chapterIndex) + 1;
         statusText.createSpan({ 
           text: ` (共${count}章)`,
           cls: 'nc-su-status-count'
         });
+        
+        // 添加可点击的创建按钮（当有完整标记时）
+        const createBtn = statusText.createSpan({ 
+          text: ' 📝 点击创建',
+          cls: 'nc-su-status-create-btn',
+          attr: { title: '点击从当前标记创建故事单元' }
+        });
+        createBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.openCreateDialogForGroup(activeGroup);
+        });
       }
+    } else if (this.markingGroups.length > 0) {
+      this.statusEl.createSpan({ 
+        text: `当前: ${activeGroup?.name || '无活动组'} - 未设置标记`,
+        cls: 'nc-su-status-empty'
+      });
     } else {
       this.statusEl.createSpan({ 
-        text: '未设置标记',
+        text: '点击"新建标记组"开始标记',
         cls: 'nc-su-status-empty'
       });
     }
+  }
+
+  /**
+   * 格式化标记位置显示
+   * 支持段落级精细标记显示格式
+   */
+  private formatMarkPosition(mark: ChapterMark, prefix: string): string {
+    let text = `${prefix}: 第${mark.chapterIndex}章`;
+    
+    if (mark.paragraphPosition) {
+      text += ` 第${mark.paragraphPosition.paragraphIndex}段`;
+      
+      // 如果有文本锚点，显示简短预览
+      if (mark.paragraphPosition.textAnchor) {
+        const anchor = mark.paragraphPosition.textAnchor;
+        const preview = anchor.length > 10 ? anchor.substring(0, 10) + '...' : anchor;
+        text += ` "${preview}"`;
+      }
+    }
+    
+    return text;
+  }
+
+  /**
+   * 更新标记组列表显示
+   */
+  private updateGroupList(): void {
+    if (!this.groupListEl) return;
+    
+    this.groupListEl.empty();
+    
+    if (this.markingGroups.length === 0) return;
+    
+    // 创建标记组标签列表
+    for (const group of this.markingGroups) {
+      const isActive = group.id === this.activeGroupId;
+      const hasMarks = group.startMark || group.endMark;
+      
+      const groupTag = this.groupListEl.createDiv({ 
+        cls: `nc-su-group-tag ${isActive ? 'nc-su-group-tag-active' : ''} ${hasMarks ? 'nc-su-group-tag-has-marks' : ''}`
+      });
+      groupTag.style.borderColor = group.color;
+      if (isActive) {
+        groupTag.style.backgroundColor = group.color + '20'; // 20% opacity
+      }
+      
+      // 颜色指示点
+      const colorDot = groupTag.createSpan({ cls: 'nc-su-group-color-dot' });
+      colorDot.style.backgroundColor = group.color;
+      
+      // 组名称（可点击切换）
+      const nameSpan = groupTag.createSpan({ 
+        text: group.name,
+        cls: 'nc-su-group-name'
+      });
+      nameSpan.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.setActiveGroup(group.id);
+      });
+      
+      // 显示标记范围（包含段落信息）
+      if (group.startMark || group.endMark) {
+        const rangeSpan = groupTag.createSpan({ cls: 'nc-su-group-range' });
+        rangeSpan.textContent = this.formatGroupRange(group);
+        
+        // 如果有段落级标记，添加提示
+        if (this.hasParagraphMarks(group)) {
+          rangeSpan.setAttribute('title', this.formatGroupRangeTooltip(group));
+          rangeSpan.addClass('nc-su-group-range-detailed');
+        }
+      }
+      
+      // 编辑按钮
+      const editBtn = groupTag.createSpan({ 
+        text: '✏️',
+        cls: 'nc-su-group-action-btn',
+        attr: { title: '重命名标记组' }
+      });
+      editBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.openRenameGroupModal(group);
+      });
+      
+      // 创建故事单元按钮（仅当有完整标记时显示）
+      if (group.startMark && group.endMark) {
+        const createBtn = groupTag.createSpan({ 
+          text: '➕',
+          cls: 'nc-su-group-action-btn nc-su-group-create-btn',
+          attr: { title: '从此标记组创建故事单元' }
+        });
+        createBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.openCreateDialogForGroup(group);
+        });
+      }
+      
+      // 删除按钮
+      const deleteBtn = groupTag.createSpan({ 
+        text: '×',
+        cls: 'nc-su-group-action-btn nc-su-group-delete-btn',
+        attr: { title: '删除标记组' }
+      });
+      deleteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.deleteMarkingGroup(group.id);
+        showInfo(`已删除标记组: ${group.name}`);
+      });
+    }
+  }
+
+  /**
+   * 检查标记组是否有段落级标记
+   */
+  private hasParagraphMarks(group: MarkingGroup): boolean {
+    return !!(
+      group.startMark?.paragraphPosition || 
+      group.endMark?.paragraphPosition
+    );
+  }
+
+  /**
+   * 格式化标记组范围显示（简短版）
+   */
+  private formatGroupRange(group: MarkingGroup): string {
+    if (group.startMark && group.endMark) {
+      let range = `(${group.startMark.chapterIndex}`;
+      if (group.startMark.paragraphPosition) {
+        range += `.${group.startMark.paragraphPosition.paragraphIndex}`;
+      }
+      range += `-${group.endMark.chapterIndex}`;
+      if (group.endMark.paragraphPosition) {
+        range += `.${group.endMark.paragraphPosition.paragraphIndex}`;
+      }
+      range += ')';
+      return range;
+    } else if (group.startMark) {
+      let range = `(${group.startMark.chapterIndex}`;
+      if (group.startMark.paragraphPosition) {
+        range += `.${group.startMark.paragraphPosition.paragraphIndex}`;
+      }
+      range += '-)';
+      return range;
+    } else if (group.endMark) {
+      let range = `(-${group.endMark.chapterIndex}`;
+      if (group.endMark.paragraphPosition) {
+        range += `.${group.endMark.paragraphPosition.paragraphIndex}`;
+      }
+      range += ')';
+      return range;
+    }
+    return '';
+  }
+
+  /**
+   * 格式化标记组范围提示（详细版）
+   */
+  private formatGroupRangeTooltip(group: MarkingGroup): string {
+    const parts: string[] = [];
+    
+    if (group.startMark) {
+      let start = `起始: 第${group.startMark.chapterIndex}章`;
+      if (group.startMark.paragraphPosition) {
+        start += ` 第${group.startMark.paragraphPosition.paragraphIndex}段`;
+        if (group.startMark.paragraphPosition.textAnchor) {
+          start += ` "${group.startMark.paragraphPosition.textAnchor}"`;
+        }
+      }
+      parts.push(start);
+    }
+    
+    if (group.endMark) {
+      let end = `结束: 第${group.endMark.chapterIndex}章`;
+      if (group.endMark.paragraphPosition) {
+        end += ` 第${group.endMark.paragraphPosition.paragraphIndex}段`;
+        if (group.endMark.paragraphPosition.textAnchor) {
+          end += ` "${group.endMark.paragraphPosition.textAnchor}"`;
+        }
+      }
+      parts.push(end);
+    }
+    
+    return parts.join('\n');
+  }
+
+  /**
+   * 打开重命名标记组模态框
+   */
+  private openRenameGroupModal(group: MarkingGroup): void {
+    const modal = new RenameGroupModal(this.app, {
+      currentName: group.name,
+      onSave: (newName) => {
+        this.renameMarkingGroup(group.id, newName);
+        showInfo(`标记组已重命名为: ${newName}`);
+      }
+    });
+    modal.open();
+  }
+
+  /**
+   * 为指定标记组打开创建对话框
+   */
+  private async openCreateDialogForGroup(group: MarkingGroup): Promise<void> {
+    if (!group.startMark || !group.endMark) {
+      showWarning('请先完成起始和结束标记');
+      return;
+    }
+    
+    const bookId = group.startMark.bookId;
+    const chapterStart = Math.min(group.startMark.chapterIndex, group.endMark.chapterIndex);
+    const chapterEnd = Math.max(group.startMark.chapterIndex, group.endMark.chapterIndex);
+    
+    // 提取段落级信息
+    const paragraphStart = group.startMark.paragraphPosition?.paragraphIndex;
+    const paragraphEnd = group.endMark.paragraphPosition?.paragraphIndex;
+    const textAnchor = group.startMark.paragraphPosition?.textAnchor || 
+                       group.endMark.paragraphPosition?.textAnchor;
+    
+    const tracks = await this.trackService.getTracksByBook(bookId);
+    const chapters = await this.storyUnitService.getBookChapters(bookId);
+    const characters = await databaseService.characters.query({ book_id: bookId });
+    
+    if (tracks.length === 0) {
+      await this.trackService.initializeDefaultTracks(bookId);
+      const newTracks = await this.trackService.getTracksByBook(bookId);
+      tracks.push(...newTracks);
+    }
+    
+    const modal = new StoryUnitQuickCreateModal(
+      this.app,
+      {
+        bookId,
+        chapterStart,
+        chapterEnd,
+        tracks,
+        chapters,
+        characters,
+        defaultTitle: group.name, // 使用标记组名称作为默认标题
+        paragraphStart,
+        paragraphEnd,
+        textAnchor,
+        onSave: async (config) => {
+          try {
+            await this.storyUnitService.createStoryUnit(config);
+            showSuccess('故事单元创建成功');
+            // 创建成功后删除该标记组
+            this.deleteMarkingGroup(group.id);
+            // 自动刷新侧边栏视图
+            this.refreshStoryUnitView();
+          } catch (error) {
+            showError('创建失败', error instanceof Error ? error.message : '未知错误');
+          }
+        }
+      }
+    );
+    modal.open();
+  }
+
+  /**
+   * 清除当前活动标记组的标记
+   */
+  private clearActiveGroupMarks(): void {
+    const activeGroup = this.getActiveGroup();
+    if (activeGroup) {
+      activeGroup.startMark = null;
+      activeGroup.endMark = null;
+      this.updateStatusDisplay();
+      showInfo(`已清除标记组 "${activeGroup.name}" 的标记`);
+    } else {
+      showWarning('没有活动的标记组');
+    }
+  }
+
+  /**
+   * 获取当前光标位置的段落信息
+   * 支持段落级精细标记
+   */
+  private getCurrentParagraphPosition(): ParagraphPosition | undefined {
+    const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+    if (!activeView) return undefined;
+    
+    const editor = activeView.editor;
+    if (!editor) return undefined;
+    
+    // 获取选中的文本或光标位置
+    const selection = editor.getSelection();
+    const cursor = editor.getCursor();
+    
+    // 获取文档内容
+    const content = editor.getValue();
+    const lines = content.split('\n');
+    
+    // 计算段落序号（以空行分隔的段落）
+    let paragraphIndex = 1;
+    let currentLine = 0;
+    let inParagraph = false;
+    
+    for (let i = 0; i <= cursor.line && i < lines.length; i++) {
+      const line = lines[i].trim();
+      
+      if (line === '') {
+        // 空行
+        if (inParagraph) {
+          inParagraph = false;
+        }
+      } else {
+        // 非空行
+        if (!inParagraph) {
+          // 开始新段落
+          if (i > 0) {
+            paragraphIndex++;
+          }
+          inParagraph = true;
+        }
+      }
+      currentLine = i;
+    }
+    
+    // 获取文本锚点（选中文本的前30字符，或光标所在行的前30字符）
+    let textAnchor: string | undefined;
+    
+    if (selection && selection.length > 0) {
+      // 使用选中的文本
+      textAnchor = selection.substring(0, 30).replace(/\n/g, ' ').trim();
+    } else {
+      // 使用光标所在行的文本
+      const currentLineText = lines[cursor.line]?.trim();
+      if (currentLineText && currentLineText.length > 0) {
+        textAnchor = currentLineText.substring(0, 30);
+      }
+    }
+    
+    return {
+      paragraphIndex,
+      offset: cursor.ch,
+      textAnchor
+    };
   }
 
   /**
@@ -240,21 +790,38 @@ class StoryUnitToolbar {
       return;
     }
     
-    this.startMark = {
+    // 获取或创建活动标记组
+    const activeGroup = this.getOrCreateActiveGroup(bookId);
+    
+    // 获取段落位置信息
+    const paragraphPosition = this.getCurrentParagraphPosition();
+    
+    activeGroup.startMark = {
       filePath: file.path,
       chapterIndex: chapterInfo.index,
       chapterTitle: chapterInfo.title,
-      bookId
+      bookId,
+      paragraphPosition
     };
     
-    if (this.endMark && this.endMark.chapterIndex < this.startMark.chapterIndex) {
-      const temp = this.startMark;
-      this.startMark = this.endMark;
-      this.endMark = temp;
+    // 自动调整顺序
+    if (activeGroup.endMark && activeGroup.endMark.chapterIndex < activeGroup.startMark.chapterIndex) {
+      const temp = activeGroup.startMark;
+      activeGroup.startMark = activeGroup.endMark;
+      activeGroup.endMark = temp;
     }
     
     this.updateStatusDisplay();
-    showInfo(`已标记起始位置: 第${chapterInfo.index}章 - ${chapterInfo.title}`);
+    
+    // 构建提示信息
+    let message = `[${activeGroup.name}] 已标记起始位置: 第${chapterInfo.index}章`;
+    if (paragraphPosition) {
+      message += ` 第${paragraphPosition.paragraphIndex}段`;
+      if (paragraphPosition.textAnchor) {
+        message += ` "${paragraphPosition.textAnchor.substring(0, 15)}..."`;
+      }
+    }
+    showInfo(message);
   }
 
   /**
@@ -267,31 +834,48 @@ class StoryUnitToolbar {
       return;
     }
     
-    this.endMark = {
+    // 获取或创建活动标记组
+    const activeGroup = this.getOrCreateActiveGroup(bookId);
+    
+    // 获取段落位置信息
+    const paragraphPosition = this.getCurrentParagraphPosition();
+    
+    activeGroup.endMark = {
       filePath: file.path,
       chapterIndex: chapterInfo.index,
       chapterTitle: chapterInfo.title,
-      bookId
+      bookId,
+      paragraphPosition
     };
     
-    if (this.startMark && this.endMark.chapterIndex < this.startMark.chapterIndex) {
-      const temp = this.startMark;
-      this.startMark = this.endMark;
-      this.endMark = temp;
+    // 自动调整顺序
+    if (activeGroup.startMark && activeGroup.endMark.chapterIndex < activeGroup.startMark.chapterIndex) {
+      const temp = activeGroup.startMark;
+      activeGroup.startMark = activeGroup.endMark;
+      activeGroup.endMark = temp;
     }
     
     this.updateStatusDisplay();
-    showInfo(`已标记结束位置: 第${chapterInfo.index}章 - ${chapterInfo.title}`);
+    
+    // 构建提示信息
+    let message = `[${activeGroup.name}] 已标记结束位置: 第${chapterInfo.index}章`;
+    if (paragraphPosition) {
+      message += ` 第${paragraphPosition.paragraphIndex}段`;
+      if (paragraphPosition.textAnchor) {
+        message += ` "${paragraphPosition.textAnchor.substring(0, 15)}..."`;
+      }
+    }
+    showInfo(message);
   }
 
   /**
-   * 清除所有标记
+   * 清除所有标记（兼容旧API）
    */
   private clearMarks(): void {
-    this.startMark = null;
-    this.endMark = null;
+    this.markingGroups = [];
+    this.activeGroupId = null;
     this.updateStatusDisplay();
-    showInfo('已清除所有标记');
+    showInfo('已清除所有标记组');
   }
 
   /**
@@ -300,16 +884,22 @@ class StoryUnitToolbar {
   private async openCreateDialog(bookId: string): Promise<void> {
     let chapterStart = 1;
     let chapterEnd = 1;
+    let defaultTitle = '';
     
-    if (this.startMark && this.endMark) {
-      chapterStart = Math.min(this.startMark.chapterIndex, this.endMark.chapterIndex);
-      chapterEnd = Math.max(this.startMark.chapterIndex, this.endMark.chapterIndex);
-    } else if (this.startMark) {
-      chapterStart = this.startMark.chapterIndex;
-      chapterEnd = this.startMark.chapterIndex;
-    } else if (this.endMark) {
-      chapterStart = this.endMark.chapterIndex;
-      chapterEnd = this.endMark.chapterIndex;
+    const activeGroup = this.getActiveGroup();
+    
+    if (activeGroup) {
+      if (activeGroup.startMark && activeGroup.endMark) {
+        chapterStart = Math.min(activeGroup.startMark.chapterIndex, activeGroup.endMark.chapterIndex);
+        chapterEnd = Math.max(activeGroup.startMark.chapterIndex, activeGroup.endMark.chapterIndex);
+        defaultTitle = activeGroup.name;
+      } else if (activeGroup.startMark) {
+        chapterStart = activeGroup.startMark.chapterIndex;
+        chapterEnd = activeGroup.startMark.chapterIndex;
+      } else if (activeGroup.endMark) {
+        chapterStart = activeGroup.endMark.chapterIndex;
+        chapterEnd = activeGroup.endMark.chapterIndex;
+      }
     }
     
     const tracks = await this.trackService.getTracksByBook(bookId);
@@ -331,11 +921,19 @@ class StoryUnitToolbar {
         tracks,
         chapters,
         characters,
+        defaultTitle,
         onSave: async (config) => {
           try {
             await this.storyUnitService.createStoryUnit(config);
             showSuccess('故事单元创建成功');
-            this.clearMarks();
+            // 创建成功后清除当前活动组的标记
+            if (activeGroup) {
+              activeGroup.startMark = null;
+              activeGroup.endMark = null;
+              this.updateStatusDisplay();
+            }
+            // 自动刷新侧边栏视图
+            this.refreshStoryUnitView();
           } catch (error) {
             showError('创建失败', error instanceof Error ? error.message : '未知错误');
           }
@@ -369,8 +967,47 @@ class StoryUnitToolbar {
     if (leaf) {
       workspace.revealLeaf(leaf);
       
-      // 设置当前书籍
+      // 设置当前书籍和LLM服务
       const view = leaf.view as StoryUnitView;
+      if (view && typeof view.setBook === 'function') {
+        // 设置LLM服务（用于AI分析）
+        if (this.config.llmService && typeof view.setLLMService === 'function') {
+          view.setLLMService(this.config.llmService);
+        }
+        await view.setBook(bookId);
+      }
+    }
+  }
+
+  /**
+   * 打开时间线视图（在底部面板）
+   */
+  private async openTimelineView(bookId: string): Promise<void> {
+    const { workspace } = this.app;
+    
+    // 查找或创建时间线视图
+    let leaf = workspace.getLeavesOfType(TIMELINE_VIEW_TYPE)[0];
+    
+    if (!leaf) {
+      // 在底部创建新的叶子（类似剪辑软件的时间线）
+      const rootSplit = workspace.rootSplit;
+      if (rootSplit) {
+        // 创建底部分割
+        leaf = workspace.createLeafBySplit(workspace.getMostRecentLeaf()!, 'horizontal', true);
+        if (leaf) {
+          await leaf.setViewState({
+            type: TIMELINE_VIEW_TYPE,
+            active: true
+          });
+        }
+      }
+    }
+    
+    if (leaf) {
+      workspace.revealLeaf(leaf);
+      
+      // 设置当前书籍
+      const view = leaf.view as TimelineView;
       if (view && typeof view.setBook === 'function') {
         await view.setBook(bookId);
       }
@@ -442,10 +1079,41 @@ class StoryUnitToolbar {
   }
 
   /**
-   * 获取当前标记状态
+   * 获取当前标记状态（兼容旧API）
    */
   getMarks(): { start: ChapterMark | null; end: ChapterMark | null } {
-    return { start: this.startMark, end: this.endMark };
+    const activeGroup = this.getActiveGroup();
+    return { 
+      start: activeGroup?.startMark || null, 
+      end: activeGroup?.endMark || null 
+    };
+  }
+
+  /**
+   * 获取所有标记组的标记状态
+   */
+  getAllMarks(): { groupId: string; name: string; start: ChapterMark | null; end: ChapterMark | null }[] {
+    return this.markingGroups.map(group => ({
+      groupId: group.id,
+      name: group.name,
+      start: group.startMark,
+      end: group.endMark
+    }));
+  }
+
+  /**
+   * 刷新故事单元侧边栏视图
+   */
+  private refreshStoryUnitView(): void {
+    const { workspace } = this.app;
+    const leaves = workspace.getLeavesOfType(STORY_UNIT_VIEW_TYPE);
+    
+    for (const leaf of leaves) {
+      const view = leaf.view as StoryUnitView;
+      if (view && typeof view.refresh === 'function') {
+        view.refresh();
+      }
+    }
   }
 
   /**
@@ -453,8 +1121,8 @@ class StoryUnitToolbar {
    */
   destroy(): void {
     this.removeToolbar();
-    this.startMark = null;
-    this.endMark = null;
+    this.markingGroups = [];
+    this.activeGroupId = null;
   }
 }
 
@@ -470,6 +1138,10 @@ class StoryUnitQuickCreateModal extends Modal {
     tracks: TrackRecord[];
     chapters: ChapterInfo[];
     characters: CharacterRecord[];
+    defaultTitle?: string;
+    paragraphStart?: number;
+    paragraphEnd?: number;
+    textAnchor?: string;
     onSave: (config: StoryUnitCreateConfig) => Promise<void>;
   };
   
@@ -480,6 +1152,9 @@ class StoryUnitQuickCreateModal extends Modal {
     trackId: string;
     isPastEvent: boolean;
     characterIds: string[];
+    paragraphStart?: number;
+    paragraphEnd?: number;
+    textAnchor?: string;
   };
   
   private saveButton!: HTMLButtonElement;
@@ -489,12 +1164,15 @@ class StoryUnitQuickCreateModal extends Modal {
     this.config = config;
     
     this.formData = {
-      title: '',
+      title: config.defaultTitle || '',
       chapterStart: config.chapterStart,
       chapterEnd: config.chapterEnd,
       trackId: config.tracks[0]?.id || '',
       isPastEvent: false,
-      characterIds: []
+      characterIds: [],
+      paragraphStart: config.paragraphStart,
+      paragraphEnd: config.paragraphEnd,
+      textAnchor: config.textAnchor
     };
   }
 
@@ -507,10 +1185,31 @@ class StoryUnitQuickCreateModal extends Modal {
     
     const rangeInfo = contentEl.createDiv({ cls: 'nc-su-range-info' });
     const count = this.formData.chapterEnd - this.formData.chapterStart + 1;
+    
+    // 构建范围显示文本（包含段落级信息）
+    let rangeText = `📖 章节范围: 第${this.formData.chapterStart}章`;
+    if (this.formData.paragraphStart) {
+      rangeText += ` 第${this.formData.paragraphStart}段`;
+    }
+    rangeText += ` - 第${this.formData.chapterEnd}章`;
+    if (this.formData.paragraphEnd) {
+      rangeText += ` 第${this.formData.paragraphEnd}段`;
+    }
+    rangeText += ` (共${count}章)`;
+    
     rangeInfo.createSpan({ 
-      text: `📖 章节范围: 第${this.formData.chapterStart}章 - 第${this.formData.chapterEnd}章 (共${count}章)`,
+      text: rangeText,
       cls: 'nc-su-range-text'
     });
+    
+    // 如果有文本锚点，显示预览
+    if (this.formData.textAnchor) {
+      const anchorInfo = rangeInfo.createDiv({ cls: 'nc-su-anchor-info' });
+      anchorInfo.createSpan({ 
+        text: `📍 文本锚点: "${this.formData.textAnchor}"`,
+        cls: 'nc-su-anchor-text'
+      });
+    }
 
     const form = contentEl.createDiv({ cls: 'nc-su-form' });
 
@@ -745,7 +1444,10 @@ class StoryUnitQuickCreateModal extends Modal {
         chapterEnd: this.formData.chapterEnd,
         trackId: this.formData.trackId,
         isPastEvent: this.formData.isPastEvent,
-        characterIds: this.formData.characterIds
+        characterIds: this.formData.characterIds,
+        paragraphStart: this.formData.paragraphStart,
+        paragraphEnd: this.formData.paragraphEnd,
+        textAnchor: this.formData.textAnchor
       });
       this.close();
     } catch (error) {
@@ -757,3 +1459,66 @@ class StoryUnitQuickCreateModal extends Modal {
 }
 
 export { StoryUnitToolbar };
+
+/**
+ * 重命名标记组模态框
+ */
+class RenameGroupModal extends Modal {
+  private config: {
+    currentName: string;
+    onSave: (newName: string) => void;
+  };
+  
+  private newName: string;
+
+  constructor(app: App, config: typeof RenameGroupModal.prototype.config) {
+    super(app);
+    this.config = config;
+    this.newName = config.currentName;
+  }
+
+  onOpen(): void {
+    const { contentEl } = this;
+    contentEl.empty();
+    contentEl.addClass('nc-su-rename-modal');
+
+    contentEl.createEl('h3', { text: '✏️ 重命名标记组' });
+
+    const form = contentEl.createDiv({ cls: 'nc-su-form' });
+
+    new Setting(form)
+      .setName('标记组名称')
+      .addText((text: TextComponent) => {
+        text.setPlaceholder('输入新名称')
+          .setValue(this.newName)
+          .onChange((value: string) => { this.newName = value; });
+        text.inputEl.addClass('nc-su-rename-input');
+        setTimeout(() => {
+          text.inputEl.focus();
+          text.inputEl.select();
+        }, 100);
+      });
+
+    const buttonContainer = contentEl.createDiv({ cls: 'nc-su-buttons' });
+    
+    buttonContainer.createEl('button', { text: '取消', cls: 'nc-btn' })
+      .addEventListener('click', () => this.close());
+    
+    buttonContainer.createEl('button', { text: '保存', cls: 'nc-btn nc-btn-primary' })
+      .addEventListener('click', () => this.save());
+  }
+
+  onClose(): void {
+    this.contentEl.empty();
+  }
+
+  private save(): void {
+    if (!this.newName.trim()) {
+      showWarning('请输入标记组名称');
+      return;
+    }
+    
+    this.config.onSave(this.newName.trim());
+    this.close();
+  }
+}

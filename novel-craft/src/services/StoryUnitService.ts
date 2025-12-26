@@ -43,6 +43,12 @@ export interface StoryUnitCreateConfig {
   characterIds?: string[];
   /** AI分析结果ID */
   aiAnalysisId?: string;
+  /** 段落级精细标记 - 起始段落位置 (1-based) */
+  paragraphStart?: number;
+  /** 段落级精细标记 - 结束段落位置 (1-based) */
+  paragraphEnd?: number;
+  /** 段落级精细标记 - 文本锚点 */
+  textAnchor?: string;
 }
 
 /**
@@ -65,6 +71,14 @@ export interface StoryUnitUpdateConfig {
   timePositionStart?: number;
   /** 时间位置时长 */
   timePositionDuration?: number;
+  /** 段落级精细标记 - 起始段落位置 */
+  paragraphStart?: number;
+  /** 段落级精细标记 - 结束段落位置 */
+  paragraphEnd?: number;
+  /** 段落级精细标记 - 文本锚点 */
+  textAnchor?: string;
+  /** 用户备注 */
+  notes?: string;
 }
 
 /**
@@ -89,7 +103,10 @@ export class StoryUnitService {
       trackId,
       isPastEvent = false,
       characterIds = [],
-      aiAnalysisId
+      aiAnalysisId,
+      paragraphStart,
+      paragraphEnd,
+      textAnchor
     } = config;
 
     // 验证章节范围
@@ -112,7 +129,10 @@ export class StoryUnitService {
       time_position_start: timePositionStart,
       time_position_duration: timePositionDuration,
       is_past_event: isPastEvent,
-      character_ids: JSON.stringify(characterIds)
+      character_ids: JSON.stringify(characterIds),
+      paragraph_start: paragraphStart,
+      paragraph_end: paragraphEnd,
+      text_anchor: textAnchor
     });
 
     return id;
@@ -168,6 +188,18 @@ export class StoryUnitService {
     }
     if (updates.timePositionDuration !== undefined) {
       updateData.time_position_duration = updates.timePositionDuration;
+    }
+    if (updates.paragraphStart !== undefined) {
+      updateData.paragraph_start = updates.paragraphStart;
+    }
+    if (updates.paragraphEnd !== undefined) {
+      updateData.paragraph_end = updates.paragraphEnd;
+    }
+    if (updates.textAnchor !== undefined) {
+      updateData.text_anchor = updates.textAnchor;
+    }
+    if (updates.notes !== undefined) {
+      updateData.notes = updates.notes;
     }
 
     return await databaseService.storyUnits.update(id, updateData);

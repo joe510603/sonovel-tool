@@ -169,6 +169,17 @@ export class NovelCraftSettingTab extends PluginSettingTab {
           this.plugin.settings.notesPath = value;
           await this.plugin.saveSettings();
         }));
+
+    new Setting(containerEl)
+      .setName('时间线导出路径')
+      .setDesc('时间线图片的导出目录（相对于 vault 根目录）')
+      .addText(text => text
+        .setPlaceholder('NovelCraft/attachments')
+        .setValue(this.plugin.settings.timelineExportPath)
+        .onChange(async (value) => {
+          this.plugin.settings.timelineExportPath = value;
+          await this.plugin.saveSettings();
+        }));
   }
 
 

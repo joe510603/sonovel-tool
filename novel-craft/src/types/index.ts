@@ -391,6 +391,8 @@ export interface NovelCraftSettings {
   defaultAnalysisMode: AnalysisMode;
   defaultNovelType: NovelType;
   notesPath: string;
+  // 时间线导出路径
+  timelineExportPath: string;
   // 自定义提示词
   customPrompts: {
     system?: string;
@@ -420,6 +422,7 @@ export const DEFAULT_SETTINGS: NovelCraftSettings = {
   defaultAnalysisMode: 'standard',
   defaultNovelType: 'fantasy',
   notesPath: 'NovelCraft/notes',
+  timelineExportPath: 'NovelCraft/attachments',
   customPrompts: {},
   customTypePrompts: {},
   tokenUsageRecords: [],

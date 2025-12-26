@@ -1,6 +1,6 @@
 {
   "name": "novel-craft",
-  "version": "1.4.1",
+  "version": "1.4.3",
   "description": "网络小说写作学习助手 - Obsidian 插件",
   "main": "main.js",
   "scripts": {
